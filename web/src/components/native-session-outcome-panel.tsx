@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../api"
 import type { ConversationRuntime } from "../conversation-runtime"
+import { CloseIcon } from "../Icons"
 import { listMachineProjects } from "../machineClient"
 import { isMachineTransportFailure as connectionFailure } from "../machine-request-error"
 import { resolveSourceSessionProject } from "../cross-machine-route-projects"
 import type { NativeSessionSurfaceTarget } from "../native-session-discovery"
+import {
+  dismissOutcome,
+  outcomeSessionKey,
+  readOutcomeDismissals
+} from "../native-session-outcome-dismissal"
 import {
   nativeSessionReviewEvidence,
   type NativeSessionReviewAttention
@@ -103,6 +109,7 @@ export function NativeSessionOutcomePanel({
 }: Props) {
   const [view, setView] = useState<OutcomeView | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [dismissals, setDismissals] = useState(() => readOutcomeDismissals())
   const generationRef = useRef(0)
   const sectionRef = useRef<HTMLElement>(null)
 
@@ -193,24 +200,60 @@ export function NativeSessionOutcomePanel({
     diffSummary ? `+${diffSummary.insertions} / −${diffSummary.deletions}` : undefined
   ].filter(Boolean).join(" · ")
   const heading = outcome ? "Project outcome" : "Session outcome"
+  const outcomeSignature = JSON.stringify([
+    heading,
+    summary,
+    review?.label,
+    review?.summary,
+    review?.detail,
+    review?.nextAction,
+    outcome?.branch,
+    outcome?.head,
+    outcome?.dirty,
+    outcome?.totalChangedFiles,
+    outcome?.filesTruncated,
+    diffSummary?.trackedFiles,
+    diffSummary?.insertions,
+    diffSummary?.deletions,
+    diffSummary?.binaryFiles
+  ])
+  const dismissed = Boolean(outcomeSignature)
+    && dismissals[outcomeSessionKey(target.ref)] === outcomeSignature
+
+  function dismiss() {
+    setDismissals(dismissOutcome(target.ref, outcomeSignature))
+  }
+
+  if (dismissed) return null
 
   return (
     <section ref={sectionRef} className={`hr-native-outcome${compact ? " compact" : ""}`} aria-label="Session outcome">
-      <button
-        type="button"
-        className="hr-native-outcome-toggle"
-        aria-expanded={expanded}
-        title={compact ? [heading, projectName, summary].filter(Boolean).join(" — ") : undefined}
-        onClick={() => setExpanded((current) => !current)}
-      >
-        <span className="hr-native-outcome-title">
-          <strong>{heading}</strong>
-          {projectName ? <small>{projectName}</small> : null}
-        </span>
-        <span className={`hr-native-outcome-summary ${outcome?.dirty === true ? "dirty" : outcome?.dirty === false ? "clean" : "unverified"}`}>
-          {summary}
-        </span>
-      </button>
+      <div className="hr-native-outcome-head">
+        <button
+          type="button"
+          className="hr-native-outcome-toggle"
+          aria-expanded={expanded}
+          title={compact ? [heading, projectName, summary].filter(Boolean).join(" — ") : undefined}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <span className="hr-native-outcome-title">
+            <strong>{heading}</strong>
+            {projectName ? <small>{projectName}</small> : null}
+          </span>
+          <span className={`hr-native-outcome-summary ${outcome?.dirty === true ? "dirty" : outcome?.dirty === false ? "clean" : "unverified"}`}>
+            {summary}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="hr-native-outcome-dismiss"
+          onClick={dismiss}
+          aria-label="Dismiss session outcome"
+          title="Dismiss session outcome"
+        >
+          <CloseIcon size={14} />
+        </button>
+      </div>
 
       {expanded ? (
         <div className="hr-native-outcome-body">

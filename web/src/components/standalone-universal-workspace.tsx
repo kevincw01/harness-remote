@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react"
 import { createPortal } from "react-dom"
 import { App as CapacitorApp } from "@capacitor/app"
 import { api } from "../api"
@@ -52,6 +52,13 @@ import {
   type NativeSessionSurfaceTarget
 } from "../native-session-discovery"
 import { migrateNativeSessionMachineStorage } from "../native-session-machine-id-migration"
+import { nativeSessionLineage } from "../native-session-lineage"
+import {
+  getLineageDismissalsSnapshot,
+  lineageSessionKey,
+  lineageSignature,
+  subscribeLineageDismissals
+} from "../native-session-lineage-dismissal"
 import { nativeSessionTransferredContext } from "../native-session-prompt"
 import type { NativeSessionRouteMachine } from "../native-session-routing"
 import type { MachineSnapshot, Session } from "../types"
@@ -920,6 +927,11 @@ function NativeSessionsWorkspace({
   const [sessionViewRevision, setSessionViewRevision] = useState(0)
   const [selectedState, setSelectedState] = useState<NativeSessionVisualState | undefined>(undefined)
   const [selectedLinks, setSelectedLinks] = useState<NativeSessionLink[]>([])
+  const lineageDismissals = useSyncExternalStore(
+    subscribeLineageDismissals,
+    getLineageDismissalsSnapshot,
+    getLineageDismissalsSnapshot
+  )
   const [lineageError, setLineageError] = useState<string | null>(null)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   // A native metadata mutation happens outside the discovery cycle. Machine polling can legitimately
@@ -1212,6 +1224,17 @@ function NativeSessionsWorkspace({
       && link.target.sessionID === selected.sessionID
     )?.transferredContext || ""
   }, [selected, selectedLinks])
+  const selectedLineage = useMemo(
+    () => selected ? nativeSessionLineage(selected.ref, selectedLinks) : [],
+    [selected, selectedLinks]
+  )
+  const selectedLineageSignature = useMemo(() => lineageSignature(selectedLineage), [selectedLineage])
+  const selectedLineageKey = selected ? lineageSessionKey(selected.ref) : ""
+  // The panel and this header strip are separate components fed by separate link reads. They share
+  // one dismissal signature so the panel's dismiss control also removes this screen real estate.
+  const selectedLineageDismissed = Boolean(selectedLineageSignature)
+    && Boolean(selectedLineageKey)
+    && lineageDismissals[selectedLineageKey] === selectedLineageSignature
   const selectedPermissionRules = selected?.permission || []
   const selectedRestrictionCount = selectedPermissionRules.filter((rule) => rule.action === "deny").length
   const selectedPolicyLabel = selectedPermissionRules.length
@@ -1555,7 +1578,7 @@ function NativeSessionsWorkspace({
                   <code title={selected.sessionID}>{selected.sessionID}</code>
                 </div>
               </header>
-              {selectedLinks.length || selectedTransferredContext || lineageError ? (
+              {(!selectedLineageDismissed || lineageError) && (selectedLinks.length || selectedTransferredContext || lineageError) ? (
                 <section className="hr-session-lineage" aria-label="Linked Session history">
                   {selectedLinks.length ? (
                     <div className="hr-session-lineage-links">
