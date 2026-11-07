@@ -382,6 +382,9 @@ export const HARNESS_PROFILES = {
     // journal once, then keep the live stream authoritative while this daemon writes it.
     journalPageWhileOwned: false,
     preserveListedTimestamps: true,
+    // Codex persists session names in its own state DB. Prefer that native title over a
+    // bridge-local first-prompt fallback, which otherwise shadows the Codex name forever.
+    preferListedTitles: true,
     reloadOnHistoryRefresh: false,
     // The official adapter exposes reasoning effort independently from model selection.
     modelVariantConfigIDs: ["reasoning_effort", "reasoningEffort"],
