@@ -77,6 +77,7 @@ export function NativeSessionActions({ target, onDeleteStarted, onDeleteFailed, 
         <button
           type="button"
           className="tdw-icon-button hr-session-action-danger"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={beginDelete}
           disabled={busy}
           aria-expanded={mode === "delete"}

@@ -51,6 +51,8 @@ assert.equal(home.includes('api.deleteSession('), false, 'Session navigation mus
 assert.ok(rename.includes('api.renameSession(target.config, target.sessionID'), 'open Session action must rename the real native Session')
 assert.ok(rename.includes('target.renameSupported') && actions.includes('target.deleteSupported'), 'native metadata actions must follow harness capabilities')
 assert.ok(actions.includes('t("sf.keepSession")') && actions.includes('t("sf.deleteSession")'), 'native deletion must use an inline translated confirmation')
+assert.ok(rename.includes('.querySelector(".hr-session-actions")'), 'opening delete must not blur-commit the rename and hide its confirmation')
+assert.match(actions, /onMouseDown=\{\(event\) => event\.preventDefault\(\)\}\s+onClick=\{beginDelete\}/, 'the delete trigger must keep the rename field focused while its dialog opens')
 
 assert.ok(observer.includes('import { WorkThreadConversation } from "./work-thread-conversation"'), 'native Session detail must mount the mature v3 controller')
 assert.ok(observer.includes('<WorkThreadConversation'), 'native Session detail must render WorkThreadConversation directly')
