@@ -20,13 +20,15 @@ import {
   federatedOperationalStateLabel,
   type FederatedOperationalBucket
 } from "../native-session-federation-labels"
-import type { MachineAgentHost, MachineSnapshot } from "../types"
+import type { MachineAgentHost, MachineSnapshot, Session } from "../types"
 import { nativeSessionDisplayTitle } from "../native-session-title"
 import { countVisibleFinishedKeys, nextFinishedKeys, withoutFinishedKey, type SessionRailState } from "../native-session-unseen"
 import { useLanguage, useTranslator } from "../useTranslator"
 import type { Translator } from "../i18n"
 import type { WorkspaceMachine } from "../workspaceMachines"
 import { AgentIcon, ChatIcon, ChevronDownIcon, FolderIcon, LoadingIcon, PlusIcon, SearchIcon, ServerIcon } from "../Icons"
+import { NativeSessionRowActions } from "./native-session-row-actions"
+import { useLongPress } from "../useLongPress"
 import "../native-session-home.css"
 import "../native-session-home-ux.css"
 import { harnessIconUrl } from "../harness-icons"
@@ -145,6 +147,11 @@ type Props = {
   deletedKeys?: ReadonlySet<string>
   /** Called once a fresh discovery proves a deleting Session has disappeared from the native index. */
   onDeletionSettled?: (key: string) => void
+  /** Native metadata actions from the rail's long-press sheet. */
+  onSessionRenamed?: (session: Session, title: string) => void
+  onSessionDeleteStarted?: (key: string) => void
+  onSessionDeleteFailed?: (key: string) => void
+  onSessionDeleted?: (key: string) => void
 }
 
 const SESSION_HOME_REFRESH_MS = 30_000
@@ -512,7 +519,11 @@ export function NativeSessionHome({
   selectedState,
   deletingKeys,
   deletedKeys,
-  onDeletionSettled
+  onDeletionSettled,
+  onSessionRenamed,
+  onSessionDeleteStarted,
+  onSessionDeleteFailed,
+  onSessionDeleted
 }: Props) {
   // A Session counts as open only while it is on screen: on a phone, back on the list it is not,
   // so its unseen mark ("Just finished") must survive until it is opened again.
@@ -520,6 +531,9 @@ export function NativeSessionHome({
   const t = useTranslator()
   const language = useLanguage()
   const [records, setRecords] = useState<RecordWithMachine[]>([])
+  const recordsRef = useRef<RecordWithMachine[]>([])
+  recordsRef.current = records
+  const [rowAction, setRowAction] = useState<RecordWithMachine | null>(null)
   const [projectsByMachine, setProjectsByMachine] = useState<Record<string, MachineProject[]>>({})
   const [loading, setLoading] = useState(false)
   const [loadedSignature, setLoadedSignature] = useState<string | null>(null)
@@ -607,6 +621,15 @@ export function NativeSessionHome({
   const pageCacheSignature = useRef<string | null>(null)
   const deletedKeysRef = useRef(deletedKeys)
   deletedKeysRef.current = deletedKeys
+  const longPress = useLongPress({
+    onLongPress: (row) => {
+      const key = row.dataset.sessionKey
+      if (!key) return
+      const item = recordsRef.current.find((candidate) => recordKey(candidate) === key)
+      if (!item || deletingKeys?.has(key)) return
+      setRowAction(item)
+    }
+  })
   const authoritativeRefreshApplied = useRef(authoritativeRefreshToken)
   const discoveryRetry = useRef<{ signature: string | null; attempt: number }>({ signature: null, attempt: 0 })
   const onRefreshCompleteRef = useRef(onRefreshComplete)
@@ -812,6 +835,12 @@ export function NativeSessionHome({
       ? selectedState
       : presentationOverrides[targetKey]
   }, [attentionSessionKeys, presentationOverrides, selectedKey, selectedState])
+  const rowActionTarget = useMemo(
+    () => rowAction
+      ? nativeSessionSurfaceTarget(rowAction.machineID, rowAction.machine.config, rowAction.record, liveStateForItem(rowAction))
+      : null,
+    [rowAction, liveStateForItem]
+  )
 
   const presentationForItem = useCallback((item: RecordWithMachine) => {
     const liveState = liveStateForItem(item)
@@ -1584,7 +1613,12 @@ export function NativeSessionHome({
         ) : null}
 
       </div>
-      <div className="hr-native-home-scroll" ref={homeScrollRef}>
+      <div
+        className="hr-native-home-scroll"
+        ref={homeScrollRef}
+        onPointerDown={longPress.onPointerDown}
+        onContextMenu={longPress.onContextMenu}
+      >
         {createOpen ? <button type="button" className="hr-native-create-backdrop" aria-label={t("sf.closeNewSession")} onClick={() => !creating && setCreateOpen(false)} /> : null}
         {createOpen ? (
           <div className="hr-native-create-panel" role="group" aria-label={t("sf.createNativeSession")}>
@@ -1778,9 +1812,11 @@ export function NativeSessionHome({
                                       ref={selected ? selectedRowRef : undefined}
                                       className={`hr-native-session-row ${rowState}${selected ? " selected" : ""}${unseen ? " unseen" : ""}${deleting ? " deleting" : ""}${depth ? " child" : ""}`}
                                       data-depth={Math.min(depth, 3)}
+                                      data-session-key={targetKey}
                                       key={targetKey}
                                       onClick={() => {
                                         if (deleting) return
+                                        if (longPress.consumeClick(targetKey)) return
                                         clearFinished(targetKey)
                                         open(item)
                                       }}
@@ -1876,6 +1912,17 @@ export function NativeSessionHome({
           <div className="hr-native-home-empty"><ChatIcon size={18} /><span>{t("sf.addMachineHint")}</span></div>
         ) : null}
       </div>
+      {rowActionTarget ? (
+        <NativeSessionRowActions
+          key={rowActionTarget.key}
+          target={rowActionTarget}
+          onClose={() => setRowAction(null)}
+          onRenamed={(session, title) => onSessionRenamed?.(session, title)}
+          onDeleteStarted={onSessionDeleteStarted}
+          onDeleteFailed={onSessionDeleteFailed}
+          onDeleted={(key) => onSessionDeleted?.(key)}
+        />
+      ) : null}
     </section>
   )
 }

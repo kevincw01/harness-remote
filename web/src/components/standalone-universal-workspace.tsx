@@ -1476,6 +1476,10 @@ function NativeSessionsWorkspace({
             deletingKeys={deletingSessionKeys}
             deletedKeys={deletedSessionKeys}
             onDeletionSettled={handleSessionDeletionSettled}
+            onSessionRenamed={handleSessionRenamed}
+            onSessionDeleteStarted={handleSessionDeleteStarted}
+            onSessionDeleteFailed={handleSessionDeleteFailed}
+            onSessionDeleted={handleSessionDeleted}
           />
         </aside>
         {/* Ported from the 2.x shell, which persisted its sidebar width while this one did not, and
