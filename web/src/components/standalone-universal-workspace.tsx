@@ -1371,6 +1371,29 @@ function NativeSessionsWorkspace({
     setListRevision((value) => value + 1)
   }
 
+  function handleSessionForked(source: NativeSessionSurfaceTarget, session: Session, title: string) {
+    const directory = session.directory || source.directory
+    const nextTitle = session.title?.trim() || title
+    openSession({
+      ...source,
+      key: `${source.machineID}:${source.agentID}:${session.id}`,
+      ref: { ...source.ref, sessionID: session.id, directory },
+      sessionID: session.id,
+      directory,
+      title: nextTitle,
+      status: session.status ?? { type: "idle" },
+      external: false,
+      parentID: session.parentID ?? source.sessionID,
+      summary: undefined,
+      tokens: undefined,
+      cost: undefined,
+      history: undefined,
+      requiresExplicitClaim: false,
+      model: source.model
+    })
+    setListRevision((value) => value + 1)
+  }
+
   const paletteCommands = useMemo<PaletteCommand[]>(() => [
     {
       id: "machines",
@@ -1477,6 +1500,7 @@ function NativeSessionsWorkspace({
             deletedKeys={deletedSessionKeys}
             onDeletionSettled={handleSessionDeletionSettled}
             onSessionRenamed={handleSessionRenamed}
+            onSessionForked={handleSessionForked}
             onSessionDeleteStarted={handleSessionDeleteStarted}
             onSessionDeleteFailed={handleSessionDeleteFailed}
             onSessionDeleted={handleSessionDeleted}

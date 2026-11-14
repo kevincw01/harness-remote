@@ -397,6 +397,10 @@ export const api = {
     return request<Session>(config, withDirectory(`/session/${id}`, directory), { method: "PATCH", body: { title } })
   },
 
+  forkSession(config: ServerConfig, id: string, title: string, directory?: string) {
+    return request<Session>(config, withDirectory(`/session/${id}/fork`, directory), { method: "POST", body: { title } })
+  },
+
   deleteSession(config: ServerConfig, id: string, directory?: string) {
     return request<boolean>(config, withDirectory(`/session/${id}`, directory), { method: "DELETE" })
   },

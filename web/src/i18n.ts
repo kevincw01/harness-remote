@@ -637,6 +637,8 @@ export type TranslationKey =
   | 'sf.createSession'
   | 'sf.creating'
   | 'sf.renameSession'
+  | 'sf.forkSession'
+  | 'sf.forkSubtitle'
   | 'sf.renameSubtitle'
   | 'sf.closeRename'
   | 'sf.sessionName'
@@ -1413,6 +1415,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.createSession': 'Create Session',
     'sf.creating': 'Creating…',
     'sf.renameSession': 'Rename Session',
+    'sf.forkSession': 'Fork Session',
+    'sf.forkSubtitle': 'Creates a new Session with this Session’s transcript and context.',
     'sf.renameSubtitle': 'Changes the native harness Session name, not a Harness Remote alias.',
     'sf.closeRename': 'Close Rename Session',
     'sf.sessionName': 'Session name',
@@ -2189,6 +2193,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.createSession': 'Crea sessione',
     'sf.creating': 'Creazione…',
     'sf.renameSession': 'Rinomina sessione',
+    'sf.forkSession': 'Fork sessione',
+    'sf.forkSubtitle': 'Crea una nuova sessione con la trascrizione e il contesto di questa sessione.',
     'sf.renameSubtitle': 'Cambia il nome della sessione nell\'harness nativo, non un alias di Harness Remote.',
     'sf.closeRename': 'Chiudi Rinomina sessione',
     'sf.sessionName': 'Nome della sessione',
@@ -2965,6 +2971,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.createSession': '建立工作階段',
     'sf.creating': '建立中…',
     'sf.renameSession': '重新命名工作階段',
+    'sf.forkSession': '建立工作階段分支',
+    'sf.forkSubtitle': '使用此工作階段的對話記錄與內容建立新的工作階段。',
     'sf.renameSubtitle': '變更原生 harness 的工作階段名稱，而非 Harness Remote 的別名。',
     'sf.closeRename': '關閉重新命名',
     'sf.sessionName': '工作階段名稱',
@@ -3741,6 +3749,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.createSession': '创建会话',
     'sf.creating': '创建中…',
     'sf.renameSession': '重命名会话',
+    'sf.forkSession': '创建会话分支',
+    'sf.forkSubtitle': '使用此会话的记录和上下文创建一个新会话。',
     'sf.renameSubtitle': '更改原生 harness 的会话名称，而非 Harness Remote 的别名。',
     'sf.closeRename': '关闭重命名',
     'sf.sessionName': '会话名称',
@@ -4517,6 +4527,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.createSession': 'Criar Sessão',
     'sf.creating': 'Criando…',
     'sf.renameSession': 'Renomear Sessão',
+    'sf.forkSession': 'Criar fork da Sessão',
+    'sf.forkSubtitle': 'Cria uma nova Sessão com o histórico e o contexto desta Sessão.',
     'sf.renameSubtitle': 'Altera o nome da Sessão nativa do harness, não um alias do Harness Remote.',
     'sf.closeRename': 'Fechar Renomear Sessão',
     'sf.sessionName': 'Nome da Sessão',

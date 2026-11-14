@@ -31,6 +31,7 @@ function sourceTarget() {
     commandsSupported: true,
     renameSupported: false,
     deleteSupported: false,
+    forkSupported: false,
     model: null,
     requiresExplicitClaim: false,
     canStop: false

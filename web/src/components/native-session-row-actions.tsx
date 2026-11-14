@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { api } from "../api"
-import { CloseIcon, LoadingIcon, PencilIcon, TrashIcon } from "../Icons"
+import { CloseIcon, ForkIcon, LoadingIcon, PencilIcon, TrashIcon } from "../Icons"
 import type { NativeSessionSurfaceTarget } from "../native-session-discovery"
 import type { Session } from "../types"
 import { useDialogDismiss } from "../useDialogDismiss"
@@ -12,14 +12,15 @@ type Props = {
   target: NativeSessionSurfaceTarget
   onClose: () => void
   onRenamed: (session: Session, title: string) => void
+  onForked: (session: Session, title: string) => void
   onDeleteStarted?: (key: string) => void
   onDeleteFailed?: (key: string) => void
   onDeleted: (key: string) => void
 }
 
-type Mode = "menu" | "rename" | "delete"
+type Mode = "menu" | "rename" | "fork" | "delete"
 
-export function NativeSessionRowActions({ target, onClose, onRenamed, onDeleteStarted, onDeleteFailed, onDeleted }: Props) {
+export function NativeSessionRowActions({ target, onClose, onRenamed, onForked, onDeleteStarted, onDeleteFailed, onDeleted }: Props) {
   const t = useTranslator()
   const [mode, setMode] = useState<Mode>("menu")
   const [title, setTitle] = useState(target.title)
@@ -37,7 +38,9 @@ export function NativeSessionRowActions({ target, onClose, onRenamed, onDeleteSt
   useEffect(() => {
     if (mode === "menu") return
     const frame = window.requestAnimationFrame(() => {
-      dialogRef.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus()
+      const focusTarget = dialogRef.current?.querySelector<HTMLElement>("[data-autofocus]")
+      focusTarget?.focus()
+      if (mode === "fork" && focusTarget instanceof HTMLInputElement) focusTarget.select()
     })
     return () => window.cancelAnimationFrame(frame)
   }, [mode])
@@ -59,6 +62,27 @@ export function NativeSessionRowActions({ target, onClose, onRenamed, onDeleteSt
     try {
       const session = await api.renameSession(target.config, target.sessionID, nextTitle, target.directory)
       onRenamed(session, nextTitle)
+      onClose()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function fork() {
+    if (busy) return
+    const nextTitle = title.trim()
+    if (!nextTitle) {
+      setError(t("sf.enterSessionName"))
+      inputRef.current?.focus()
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const session = await api.forkSession(target.config, target.sessionID, nextTitle, target.directory)
+      onForked(session, nextTitle)
       onClose()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
@@ -119,6 +143,16 @@ export function NativeSessionRowActions({ target, onClose, onRenamed, onDeleteSt
                 <span>{t("sf.renameSession")}</span>
               </button>
             ) : null}
+            {target.forkSupported ? (
+              <button
+                type="button"
+                className="hr-session-row-action"
+                onClick={() => { setError(null); setTitle(target.title); setMode("fork") }}
+              >
+                <ForkIcon size={16} />
+                <span>{t("sf.forkSession")}</span>
+              </button>
+            ) : null}
             {target.deleteSupported ? (
               <button
                 type="button"
@@ -167,6 +201,44 @@ export function NativeSessionRowActions({ target, onClose, onRenamed, onDeleteSt
               </button>
               <button type="submit" className="tdw-button primary" disabled={busy || !title.trim()}>
                 {busy ? <LoadingIcon size={14} /> : t("sf.rename")}
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {mode === "fork" ? (
+          <form
+            className="hr-session-row-actions-form"
+            onSubmit={(event) => { event.preventDefault(); void fork() }}
+          >
+            <label>
+              <span>{t("sf.sessionName")}</span>
+              <input
+                ref={inputRef}
+                value={title}
+                data-autofocus
+                disabled={busy}
+                maxLength={200}
+                spellCheck={false}
+                aria-label={t("sf.sessionName")}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => { setTitle(event.target.value); if (error) setError(null) }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.stopPropagation()
+                    setMode("menu")
+                    setError(null)
+                  }
+                }}
+              />
+            </label>
+            <small>{t("sf.forkSubtitle")}</small>
+            <div className="hr-session-row-actions-buttons">
+              <button type="button" className="tdw-button secondary" onClick={() => { setMode("menu"); setError(null) }} disabled={busy}>
+                {t("sf.cancel")}
+              </button>
+              <button type="submit" className="tdw-button primary" disabled={busy || !title.trim()}>
+                {busy ? <LoadingIcon size={14} /> : t("sf.forkSession")}
               </button>
             </div>
           </form>

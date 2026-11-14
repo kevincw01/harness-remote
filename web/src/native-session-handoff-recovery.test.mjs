@@ -36,6 +36,7 @@ const source = {
   commandsSupported: false,
   renameSupported: false,
   deleteSupported: false,
+  forkSupported: false,
   requiresExplicitClaim: false,
   canStop: true
 }

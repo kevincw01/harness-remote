@@ -180,6 +180,7 @@ function targetRecord(
     commandsSupported: targetAgent.capabilities?.commands === true,
     renameSupported: targetAgent.capabilities?.sessionRename === true,
     deleteSupported: targetAgent.capabilities?.sessionDelete === true,
+    forkSupported: targetAgent.capabilities?.sessionFork === true,
     writerOwned: true,
     session: {
       id: pending.target.sessionID,

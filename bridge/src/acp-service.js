@@ -1040,6 +1040,55 @@ export class AcpService {
   }
 
   /**
+   * Create a new Session from an existing one, then give it the name the user chose.
+   *
+   * ACP `session/fork` copies the transcript and context but returns only an id and config; it has
+   * no title field. The name is therefore stored through the same native rename path used by
+   * `createSession`, with the bridge-local title as the fallback when the harness cannot rename.
+   */
+  async forkSession(sessionID, title) {
+    await this.#restoreTitleIndex()
+    const normalized = typeof title === "string" ? title.trim().replace(/\s+/g, " ") : ""
+    if (!normalized) throw new Error("A session title is required")
+    await this.#acp.start()
+    if (!this.#acp.sessionCapabilities?.fork) throw new Error("Forking is not supported by this harness")
+    await this.#requireSession(sessionID)
+    if (this.#isBusy(sessionID)) throw new Error("A busy Session cannot be forked")
+    const source = this.#sessions.get(sessionID)
+    if (!source) throw new Error("Harness session not found")
+
+    const result = await this.#acp.request("session/fork", {
+      sessionId: sessionID,
+      cwd: source.cwd,
+      mcpServers: []
+    }, 300_000)
+    const forkedID = result?.sessionId
+    if (typeof forkedID !== "string" || !forkedID) throw new Error("Harness did not return a forked Session")
+
+    this.#acpOpenSessions.add(forkedID)
+    this.#rememberSessionConfiguration(forkedID, result)
+    const session = {
+      sessionId: forkedID,
+      cwd: source.cwd,
+      title: normalized,
+      updatedAt: new Date().toISOString(),
+      _meta: { messageCount: source._meta?.messageCount ?? 0 }
+    }
+    this.#sessions.set(forkedID, session)
+    this.#ownedSessions.add(forkedID)
+    // Keep the chosen name even when this harness has no native rename command. The native rename
+    // path clears this override once the harness stores the title itself.
+    this.#titles.set(forkedID, normalized)
+    await this.#persistTitleIndex()
+    await this.#applyNativeSessionName(forkedID, normalized)
+    await this.#refreshSessions()
+    this.#enforceLoadedSessionLimit(forkedID)
+    this.#emit("session.created", forkedID)
+    const current = this.#sessions.get(forkedID) ?? session
+    return sessionView(current, "idle", this.#titleFor(forkedID))
+  }
+
+  /**
    * Explicitly acquire the writer for one exact existing native ACP Session.
    *
    * Reading a journal-backed Session must not imply ownership. A Session that this ACP connection

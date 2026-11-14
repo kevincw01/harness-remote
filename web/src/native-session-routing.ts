@@ -131,6 +131,7 @@ function targetRecord(source: NativeSessionSurfaceTarget, ref: NativeSessionRef,
     commandsSupported: agent.capabilities?.commands === true,
     renameSupported: agent.capabilities?.sessionRename === true,
     deleteSupported: agent.capabilities?.sessionDelete === true,
+    forkSupported: agent.capabilities?.sessionFork === true,
     writerOwned: true,
     session: {
       id: ref.sessionID,

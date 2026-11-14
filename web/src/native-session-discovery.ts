@@ -40,6 +40,7 @@ export type NativeSessionRecord = {
   commandsSupported?: boolean
   renameSupported: boolean
   deleteSupported: boolean
+  forkSupported: boolean
   /** True only when this UI record comes from a mutation that just created/claimed the Session through
    * this daemon. Discovery itself deliberately leaves ownership unknown. */
   writerOwned?: boolean
@@ -98,6 +99,7 @@ export type NativeSessionSurfaceTarget = {
    * hide a Session even when the native protocol has no rename/delete operation. */
   renameSupported: boolean
   deleteSupported: boolean
+  forkSupported: boolean
   model: ModelSelection | null
   parentID?: string
   summary?: Session["summary"]
@@ -207,6 +209,7 @@ export function nativeSessionSurfaceTarget(
     commandsSupported: record.commandsSupported === true,
     renameSupported: record.renameSupported,
     deleteSupported: record.deleteSupported,
+    forkSupported: record.forkSupported,
     model: sessionModel(record.session),
     parentID: record.session.parentID,
     summary: record.session.summary,
@@ -284,6 +287,7 @@ function nativeSessionRecords(
     commandsSupported: agent.capabilities?.commands === true,
     renameSupported: agent.capabilities?.sessionRename === true,
     deleteSupported: agent.capabilities?.sessionDelete === true,
+    forkSupported: agent.capabilities?.sessionFork === true,
     session,
     // A lifecycle edge can precede convergence of the lightweight status endpoint. Use that fresher
     // observation only inside its bounded grace period; durable discovery becomes authoritative again

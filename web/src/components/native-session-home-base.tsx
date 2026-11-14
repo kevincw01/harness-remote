@@ -149,6 +149,7 @@ type Props = {
   onDeletionSettled?: (key: string) => void
   /** Native metadata actions from the rail's long-press sheet. */
   onSessionRenamed?: (session: Session, title: string) => void
+  onSessionForked?: (source: NativeSessionSurfaceTarget, session: Session, title: string) => void
   onSessionDeleteStarted?: (key: string) => void
   onSessionDeleteFailed?: (key: string) => void
   onSessionDeleted?: (key: string) => void
@@ -521,6 +522,7 @@ export function NativeSessionHome({
   deletedKeys,
   onDeletionSettled,
   onSessionRenamed,
+  onSessionForked,
   onSessionDeleteStarted,
   onSessionDeleteFailed,
   onSessionDeleted
@@ -1918,6 +1920,7 @@ export function NativeSessionHome({
           target={rowActionTarget}
           onClose={() => setRowAction(null)}
           onRenamed={(session, title) => onSessionRenamed?.(session, title)}
+          onForked={(session, title) => onSessionForked?.(rowActionTarget, session, title)}
           onDeleteStarted={onSessionDeleteStarted}
           onDeleteFailed={onSessionDeleteFailed}
           onDeleted={(key) => onSessionDeleted?.(key)}

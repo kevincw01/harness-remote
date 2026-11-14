@@ -463,9 +463,14 @@ export function createBridgeServer({ config, acp, serviceOptions, machineRegistr
         return
       }
 
-      const sessionMatch = /^\/session\/([^/]+)(?:\/(message|prompt_async|abort|todo|diff|action|command|queue)(?:\/([^/]+))?)?$/.exec(url.pathname)
+      const sessionMatch = /^\/session\/([^/]+)(?:\/(message|prompt_async|abort|todo|diff|action|command|queue|fork)(?:\/([^/]+))?)?$/.exec(url.pathname)
       if (sessionMatch) {
         const [, sessionID, operation, actionID] = sessionMatch
+        if (request.method === "POST" && operation === "fork") {
+          const body = await readBody(request)
+          writeJSON(response, 200, await service.forkSession(sessionID, typeof body.title === "string" ? body.title : ""))
+          return
+        }
         if (request.method === "PATCH" && !operation) {
           const body = await readBody(request)
           writeJSON(response, 200, await service.renameSession(sessionID, typeof body.title === "string" ? body.title : ""))

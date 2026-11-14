@@ -119,6 +119,7 @@ function stableItem(backend, id, updated, status = "idle", directory = "/repo") 
       modelsSupported: true,
       renameSupported: true,
       deleteSupported: true,
+      forkSupported: true,
       session: {
         id,
         title: id,
