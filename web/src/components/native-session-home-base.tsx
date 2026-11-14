@@ -714,6 +714,7 @@ export function NativeSessionHome({
       const next: Record<string, AgentLoadState> = {}
       for (const { machine, snapshot } of readySources) {
         for (const agent of snapshot?.agents ?? []) {
+          if (agent.state === "unavailable") continue
           const scope = pageScopeKey(machine.id, agent.id)
           if (current[scope] === "retrying") next[scope] = "retrying"
           else if (!pageCache.current.has(scope)) next[scope] = "loading"
@@ -724,7 +725,7 @@ export function NativeSessionHome({
     void Promise.all(readySources.map(async ({ machine, snapshot }) => {
       if (!snapshot) return { machine, snapshot, projects: [] as MachineProject[], pages: [] }
       const [pages, projects] = await Promise.all([
-        Promise.all(snapshot.agents.map(async (agent) => ({
+        Promise.all(snapshot.agents.filter((agent) => agent.state !== "unavailable").map(async (agent) => ({
           agent,
           page: await discoverAgentNativeSessionPageSkippingEmpty(machine.config, agent).catch(() => null)
         }))),
@@ -1177,6 +1178,7 @@ export function NativeSessionHome({
           count + group.sessions.filter((item) => unseenKeys.has(recordKey(item))).length, 0),
         updatedAt: projects.reduce((latest, group) => Math.max(latest, group.updatedAt), 0),
         pendingAgents: (snapshot?.agents ?? []).flatMap((agent) => {
+          if (agent.state === "unavailable") return []
           const load = agentLoad[pageScopeKey(machine.id, agent.id)]
           return load ? [{ label: agent.label || agent.id, load }] : []
         })
