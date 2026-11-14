@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client"
 import { Capacitor } from "@capacitor/core"
 import type { DesktopLocalRuntimeState } from "../electron/ipc-contract"
 import { installAppPreferences } from "./appPreferences"
+import { syncBackgroundAttention } from "./background-attention"
+import { useNotificationPreferences } from "./notification-preferences"
 import { installCompletionAudioGuard } from "./completion-audio"
 import { StandaloneUniversalWorkspace } from "./components/standalone-universal-workspace"
 import {
@@ -51,6 +53,7 @@ import "./session-header-narrow.css"
 import "./mobile-compact-chat.css"
 // Final polish for the compact Session list. Self-contained: remove this import to revert it.
 import "./compact-final-touch.css"
+import "./mobile-composer.css"
 // Plugin catalogue, allowance cards and quick view. Self-contained `hr-plugin-*` classes.
 import "./plugin-center.css"
 
@@ -105,6 +108,17 @@ function HarnessRemoteBoundary() {
   const [pairingScanBusy, setPairingScanBusy] = useState(false)
   const [pairingSuccessRevision, setPairingSuccessRevision] = useState(0)
   const [pairingSuccessMachineName, setPairingSuccessMachineName] = useState<string | null>(null)
+
+  // The native foreground service is the only component that keeps paired-machine streams alive
+  // after Android backgrounds the WebView. A launch with paired machines asks for the notification
+  // permission when this install has never asked: someone who updated from a version without
+  // background notifications already has machines and would otherwise never see the prompt. The
+  // native side asks at most once per install and never again after a grant or a denial.
+  const notificationPreferences = useNotificationPreferences()
+  useEffect(() => {
+    if (!machinesReady) return
+    void syncBackgroundAttention(persistedMachines, { prompt: true, preferences: notificationPreferences }).catch(() => undefined)
+  }, [machinesReady, revision, notificationPreferences])
 
   // Success needs no action, so it clears itself. Errors carry what to fix and stay until dismissed;
   // "connecting" is replaced by the outcome.
@@ -200,6 +214,7 @@ function HarnessRemoteBoundary() {
       const nextMachines = upsertPairedMachine(machinesRef.current, paired)
       machinesRef.current = nextMachines
       persistMachines(nextMachines)
+      void syncBackgroundAttention(nextMachines, { prompt: true }).catch(() => undefined)
       setPairingSuccessMachineName(paired.name)
       setPairingSuccessRevision((value) => value + 1)
       setPairingNotice({ kind: "success", text: t("sf.pairingConnected", { name: paired.name }) })

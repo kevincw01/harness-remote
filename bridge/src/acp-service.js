@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { selectableAcpModelValue, modelConfigOptionFromSessionResponse, modelValueIsExcluded, normalizedAcpModelCandidates, splitAcpModelValue, splitInlineAcpModelVariant } from "./agent-model-catalog.js"
-import { TranscriptCache } from "./transcript-cache.js"
+import { partWeight, TranscriptCache, transcriptWeight } from "./transcript-cache.js"
 import { stripAmbientContext } from "./ambient-context.js"
 import {
   listExtensionActions,
@@ -88,7 +88,7 @@ function sessionView(session, status = "idle", title = session.title, external =
  * turn is the natural delimiter, so those adjacent envelopes are one visible reply. Keeping them
  * separate breaks Markdown whenever a marker or word straddles two updates.
  */
-function mergeFragmentedPiSnapshot(messages) {
+export function mergeFragmentedPiSnapshot(messages) {
   const merged = []
   for (const message of messages) {
     const previous = merged.at(-1)
@@ -100,14 +100,20 @@ function mergeFragmentedPiSnapshot(messages) {
       && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(message.info.id)
       && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(previous.info.id)
     ) {
+      // Build a new envelope; never write into the ones passed in. Callers hand over objects owned by
+      // caches - the DeepSeek history loader serves the very same message objects to every later read,
+      // including the page the app shows. Appending this text into the cached first message made every
+      // following page carry the reply twice: once inside that message and once in its own.
+      const parts = [...(previous.parts ?? [])]
       for (const part of message.parts ?? []) {
-        const lastPart = previous.parts.at(-1)
+        const lastPart = parts.at(-1)
         if (lastPart?.type === part?.type && typeof lastPart.text === "string" && typeof part.text === "string") {
-          lastPart.text += part.text
+          parts[parts.length - 1] = { ...lastPart, text: lastPart.text + part.text }
         } else {
-          previous.parts.push(part)
+          parts.push(part)
         }
       }
+      merged[merged.length - 1] = { ...previous, parts }
       continue
     }
     merged.push(message)
@@ -161,18 +167,26 @@ export function chronologicalReplay(messages) {
   return ordered
 }
 
+// A text-less message is the same one only by its first tool call, never by rank.
+function replayIdentity(message) {
+  if (visibleMessageText(message) || message?.info?.error?.message) return messageSignature(message)
+  const call = message?.parts?.find((part) => part?.type === "tool" && part.callID)?.callID
+  return call ? `${messageSignature(message)}\u0000${call}` : undefined
+}
+
 function authoritativeReplay(previous, replayed) {
   // ACP replay can omit timestamps and mint fresh ids. Retain known identities for unchanged
   // occurrences, while the native replay alone decides content, membership and order.
   const priorBySignature = new Map()
   for (const message of previous) {
-    const signature = messageSignature(message)
+    const signature = replayIdentity(message)
+    if (signature === undefined) continue
     const matches = priorBySignature.get(signature) ?? []
     matches.push(message)
     priorBySignature.set(signature, matches)
   }
   return replayed.map((message) => {
-    const prior = priorBySignature.get(messageSignature(message))?.shift()
+    const prior = priorBySignature.get(replayIdentity(message))?.shift()
     if (!prior) return message
     return {
       ...message,
@@ -2178,6 +2192,7 @@ export class AcpService {
     this.#messages.set(sessionID, messages)
     const streamedID = this.#chunkMessageIDs.get(`${sessionID}:assistant`)
     let target = streamedID ? messages.find((item) => item.info.id === streamedID) : undefined
+    const weight = target ? transcriptWeight([{ info: target.info }]) : 0
     if (!target) {
       target = {
         info: { id: randomUUID(), role: "assistant", sessionID, time: { created: Date.now() } },
@@ -2186,6 +2201,7 @@ export class AcpService {
       messages.push(target)
     }
     target.info.error = { name: "HarnessTurnError", message: message.trim() }
+    this.#messages.grow(sessionID, transcriptWeight([{ info: target.info }]) - weight)
     if (this.#historyLoader?.authoritativeHistory) {
       const failures = this.#transientFailureMessageIDs.get(sessionID) ?? new Set()
       failures.add(target.info.id)
@@ -2507,6 +2523,7 @@ export class AcpService {
         const cachedMessages = this.#messages.get(sessionID) ?? []
         const healedMessages = healPoisonedSnapshot(cachedMessages)
         if (healedMessages !== cachedMessages) this.#messages.set(sessionID, healedMessages)
+        else this.#messages.refresh(sessionID)
         const snapshot = JSON.stringify({
           version: 1,
           messages: journalOwnsTranscript ? [] : healedMessages,
@@ -2839,10 +2856,12 @@ export class AcpService {
       const index = messages.findIndex((item) => queuedIDs.has(item.info.id))
       if (index >= 0) {
         messages.splice(index, 0, message)
+        this.#messages.grow(sessionID, transcriptWeight([message]))
         return
       }
     }
     messages.push(message)
+    this.#messages.grow(sessionID, transcriptWeight([message]))
   }
 
   /**
@@ -2867,6 +2886,7 @@ export class AcpService {
         }))
       ]
     })
+    this.#messages.grow(sessionID, transcriptWeight([messages.at(-1)]))
     // The acknowledgement suppresses the harness echoing this prompt back. A queued prompt sets it
     // on dequeue instead: set here, it replaced the running turn's and let that echo through as a
     // duplicate user row below the queued one.
@@ -3002,6 +3022,7 @@ export class AcpService {
           time: { start: Date.now() }
         }
       })
+      this.#messages.grow(sessionId, partWeight(message.parts.at(-1)))
       if (!replaying) this.#emit("message.updated", sessionId)
       return
     }
@@ -3010,6 +3031,7 @@ export class AcpService {
         .flatMap((message) => message.parts)
         .find((part) => part.type === "tool" && part.callID === update.toolCallId)
       if (!tool?.state) return
+      const weight = partWeight(tool)
       const output = update.rawOutput ?? update.content
         ?.flatMap((item) => item.type === "content" && item.content?.type === "text" ? [item.content.text] : [])
         .join("")
@@ -3022,6 +3044,7 @@ export class AcpService {
       if (typeof update.kind === "string") tool.kind = update.kind
       if (output) tool.state.output = typeof output === "string" ? output : JSON.stringify(output)
       if (tool.state.time && ["completed", "error"].includes(tool.state.status)) tool.state.time.end = Date.now()
+      this.#messages.grow(sessionId, partWeight(tool) - weight)
       if (!replaying) this.#emit("message.updated", sessionId)
       return
     }
@@ -3117,6 +3140,7 @@ export class AcpService {
         ...(partType === "reasoning" ? { time: { start: now } } : {})
       })
     }
+    this.#messages.grow(sessionId, !image && continuesPrevious ? text.length : partWeight(message.parts.at(-1)))
     if (!replaying) this.#emit("message.updated", sessionId)
   }
 

@@ -612,6 +612,23 @@ export type TranslationKey =
   | 'act.verb.todo.done'
   | 'act.verb.todo.live'
   | 'settings.activityTitle'
+  | 'settings.backgroundTitle'
+  | 'settings.backgroundShow'
+  | 'settings.backgroundHint'
+  | 'settings.backgroundRestored'
+  | 'settings.backgroundUnavailable'
+  | 'notify.sessionReady'
+  | 'notify.sessionFailed'
+  | 'settings.notificationsTitle'
+  | 'settings.notificationsEnabled'
+  | 'settings.notificationsReady'
+  | 'settings.notificationsFailed'
+  | 'settings.notificationsAttention'
+  | 'settings.notificationsHintDesktop'
+  | 'settings.notificationsHintWeb'
+  | 'settings.notificationsHintAndroid'
+  | 'settings.notificationsBlocked'
+  | 'settings.notificationsUnsupported'
   | 'settings.activityHint'
   | 'settings.activityLive'
   | 'settings.activityLive.latest'
@@ -718,6 +735,8 @@ export type TranslationKey =
   | 'sf.connectingBody'
   | 'sf.loadingSessions'
   | 'sf.loadingSessionsBody'
+  | 'sf.loadingHarnessSessions'
+  | 'sf.waitingHarnessSessions'
   | 'sf.configuredMachines'
   | 'sf.machinesUnavailable'
   | 'sf.couldNotConnect'
@@ -725,6 +744,9 @@ export type TranslationKey =
   | 'sf.manageMachines'
   | 'sf.openNativeSession'
   | 'sf.openNativeSessionBody'
+  | 'tray.open'
+  | 'tray.quit'
+  | 'tray.tooltip'
   | 'sf.onlineCount'
   | 'sf.offlineCount'
   | 'sf.nativeSessionTruth'
@@ -1390,6 +1412,23 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'act.verb.todo.done': 'Updated the plan',
     'act.verb.todo.live': 'Updating the plan',
     'settings.activityTitle': 'Conversation activity',
+    'settings.backgroundTitle': 'Background connection',
+    'settings.backgroundShow': 'Show connection notification',
+    'settings.backgroundHint': 'Restore the persistent notification if you hid it.',
+    'settings.backgroundRestored': 'Notification restored',
+    'settings.backgroundUnavailable': 'Notification unavailable. Check notification permission.',
+    'notify.sessionReady': 'Session ready',
+    'notify.sessionFailed': 'Session failed',
+    'settings.notificationsTitle': 'Notifications',
+    'settings.notificationsEnabled': 'Notifications on this device',
+    'settings.notificationsReady': 'Session ready',
+    'settings.notificationsFailed': 'Session failed',
+    'settings.notificationsAttention': 'Needs attention',
+    'settings.notificationsHintDesktop': 'You can also turn them off in the system notification settings for Harness Remote.',
+    'settings.notificationsHintWeb': 'Shown while a Harness Remote tab is open in this browser.',
+    'settings.notificationsHintAndroid': 'Shown by the background connection, even with the app closed.',
+    'settings.notificationsBlocked': 'Blocked by the browser. Allow notifications for this site in the browser settings, then turn them on again here.',
+    'settings.notificationsUnsupported': 'This browser cannot show notifications.',
     'settings.activityHint': 'What the agent does between your message and its answer: its updates, its reasoning and the tools it runs. Changes apply to open conversations immediately.',
     'settings.activityLive': 'While the agent works',
     'settings.activityLive.latest': 'Show its latest update',
@@ -1496,6 +1535,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.connectingBody': 'Discovering Projects, installed coding agents and native Sessions. An ACP harness may need a few seconds to start.',
     'sf.loadingSessions': 'Loading Sessions',
     'sf.loadingSessionsBody': 'Reading the native Sessions the connected machines\' coding agents own.',
+    'sf.loadingHarnessSessions': 'Loading Sessions: {names}',
+    'sf.waitingHarnessSessions': 'Still waiting for {names}, retrying…',
     'sf.configuredMachines': '{count} configured machines',
     'sf.machinesUnavailable': 'Machines unavailable',
     'sf.couldNotConnect': 'Harness Remote could not connect',
@@ -1503,6 +1544,9 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.manageMachines': 'Manage machines',
     'sf.openNativeSession': 'Open a native Session',
     'sf.openNativeSessionBody': 'Select a Session from the left, or start a new one inside a Project. You will continue the same Session owned by its coding agent.',
+    'tray.open': 'Open Harness Remote',
+    'tray.quit': 'Quit Harness Remote',
+    'tray.tooltip': 'Harness Remote · background notifications active',
     'sf.onlineCount': '{count} online',
     'sf.offlineCount': '{count} offline',
     'sf.nativeSessionTruth': 'Native Session truth',
@@ -2168,6 +2212,23 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'act.verb.todo.done': 'Piano aggiornato',
     'act.verb.todo.live': 'Aggiornamento del piano',
     'settings.activityTitle': 'Attività nelle conversazioni',
+    'settings.backgroundTitle': 'Connessione in background',
+    'settings.backgroundShow': 'Mostra la notifica di connessione',
+    'settings.backgroundHint': 'Ripristina la notifica persistente se l’hai nascosta.',
+    'settings.backgroundRestored': 'Notifica ripristinata',
+    'settings.backgroundUnavailable': 'Notifica non disponibile. Controlla il permesso notifiche.',
+    'notify.sessionReady': 'Session pronta',
+    'notify.sessionFailed': 'Session fallita',
+    'settings.notificationsTitle': 'Notifiche',
+    'settings.notificationsEnabled': 'Notifiche su questo dispositivo',
+    'settings.notificationsReady': 'Session pronta',
+    'settings.notificationsFailed': 'Session fallita',
+    'settings.notificationsAttention': 'Serve attenzione',
+    'settings.notificationsHintDesktop': 'Puoi anche disattivarle dalle impostazioni notifiche del sistema per Harness Remote.',
+    'settings.notificationsHintWeb': 'Mostrate finché una scheda di Harness Remote è aperta in questo browser.',
+    'settings.notificationsHintAndroid': 'Mostrate dalla connessione in background, anche con l’app chiusa.',
+    'settings.notificationsBlocked': 'Bloccate dal browser. Consenti le notifiche per questo sito nelle impostazioni del browser, poi riattivale qui.',
+    'settings.notificationsUnsupported': 'Questo browser non può mostrare notifiche.',
     'settings.activityHint': "Ciò che l'agente fa tra il tuo messaggio e la risposta: i suoi aggiornamenti, il ragionamento e gli strumenti che usa. Le modifiche valgono subito anche per le conversazioni aperte.",
     'settings.activityLive': "Mentre l'agente lavora",
     'settings.activityLive.latest': "Mostra l'ultimo aggiornamento",
@@ -2274,6 +2335,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.connectingBody': 'Individuazione di progetti, coding agent installati e sessioni native. Un harness ACP può richiedere alcuni secondi per avviarsi.',
     'sf.loadingSessions': 'Caricamento sessioni',
     'sf.loadingSessionsBody': 'Lettura delle sessioni native possedute dai coding agent di ogni macchina.',
+    'sf.loadingHarnessSessions': 'Caricamento sessioni: {names}',
+    'sf.waitingHarnessSessions': 'In attesa di {names}, nuovo tentativo…',
     'sf.configuredMachines': '{count} macchine configurate',
     'sf.machinesUnavailable': 'Macchine non raggiungibili',
     'sf.couldNotConnect': 'Harness Remote non è riuscito a connettersi',
@@ -2281,6 +2344,9 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.manageMachines': 'Gestisci macchine',
     'sf.openNativeSession': 'Apri una sessione nativa',
     'sf.openNativeSessionBody': 'Seleziona una sessione a sinistra, o avviane una nuova in un progetto. Continuerai la stessa sessione posseduta dal suo coding agent.',
+    'tray.open': 'Apri Harness Remote',
+    'tray.quit': 'Esci da Harness Remote',
+    'tray.tooltip': 'Harness Remote · notifiche in background attive',
     'sf.onlineCount': '{count} online',
     'sf.offlineCount': '{count} offline',
     'sf.nativeSessionTruth': 'Verità della sessione nativa',
@@ -2946,6 +3012,23 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'act.verb.todo.done': '更新計畫',
     'act.verb.todo.live': '正在更新計畫',
     'settings.activityTitle': '對話活動',
+    'settings.backgroundTitle': '背景連線',
+    'settings.backgroundShow': '顯示連線通知',
+    'settings.backgroundHint': '如果你隱藏了常駐通知，請在此恢復。',
+    'settings.backgroundRestored': '通知已恢復',
+    'settings.backgroundUnavailable': '通知不可用。請檢查通知權限。',
+    'notify.sessionReady': '工作階段已就緒',
+    'notify.sessionFailed': '工作階段失敗',
+    'settings.notificationsTitle': '通知',
+    'settings.notificationsEnabled': '此裝置上的通知',
+    'settings.notificationsReady': '工作階段已就緒',
+    'settings.notificationsFailed': '工作階段失敗',
+    'settings.notificationsAttention': '需要注意',
+    'settings.notificationsHintDesktop': '你也可以在系統的 Harness Remote 通知設定中關閉。',
+    'settings.notificationsHintWeb': '在此瀏覽器開著 Harness Remote 分頁時顯示。',
+    'settings.notificationsHintAndroid': '由背景連線顯示，即使應用程式已關閉。',
+    'settings.notificationsBlocked': '已被瀏覽器封鎖。請在瀏覽器設定中允許此網站的通知，然後在這裡重新開啟。',
+    'settings.notificationsUnsupported': '此瀏覽器無法顯示通知。',
     'settings.activityHint': '代理在你的訊息與它的回覆之間所做的事：進度訊息、推理與執行的工具。變更會立即套用到已開啟的對話。',
     'settings.activityLive': '代理工作時',
     'settings.activityLive.latest': '顯示最新進度',
@@ -3052,6 +3135,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.connectingBody': '正在探索專案、已安裝的編碼代理與原生工作階段。ACP harness 可能需要幾秒鐘啟動。',
     'sf.loadingSessions': '載入工作階段',
     'sf.loadingSessionsBody': '正在讀取各機器的程式代理所擁有的原生工作階段。',
+    'sf.loadingHarnessSessions': '正在載入工作階段：{names}',
+    'sf.waitingHarnessSessions': '仍在等待 {names}，正在重試…',
     'sf.configuredMachines': '已設定 {count} 部機器',
     'sf.machinesUnavailable': '機器無法使用',
     'sf.couldNotConnect': 'Harness Remote 無法連線',
@@ -3059,6 +3144,9 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.manageMachines': '管理機器',
     'sf.openNativeSession': '開啟原生工作階段',
     'sf.openNativeSessionBody': '從左側選擇工作階段，或在專案中啟動新的工作階段。你將延續由其編碼代理擁有的同一個工作階段。',
+    'tray.open': '開啟 Harness Remote',
+    'tray.quit': '結束 Harness Remote',
+    'tray.tooltip': 'Harness Remote · 背景通知已啟用',
     'sf.onlineCount': '{count} 個上線',
     'sf.offlineCount': '{count} 個離線',
     'sf.nativeSessionTruth': '原生工作階段真實狀態',
@@ -3724,6 +3812,23 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'act.verb.todo.done': '更新计划',
     'act.verb.todo.live': '正在更新计划',
     'settings.activityTitle': '对话活动',
+    'settings.backgroundTitle': '后台连接',
+    'settings.backgroundShow': '显示连接通知',
+    'settings.backgroundHint': '如果你隐藏了常驻通知，请在此恢复。',
+    'settings.backgroundRestored': '通知已恢复',
+    'settings.backgroundUnavailable': '通知不可用。请检查通知权限。',
+    'notify.sessionReady': '会话已就绪',
+    'notify.sessionFailed': '会话失败',
+    'settings.notificationsTitle': '通知',
+    'settings.notificationsEnabled': '此设备上的通知',
+    'settings.notificationsReady': '会话已就绪',
+    'settings.notificationsFailed': '会话失败',
+    'settings.notificationsAttention': '需要注意',
+    'settings.notificationsHintDesktop': '你也可以在系统的 Harness Remote 通知设置中关闭。',
+    'settings.notificationsHintWeb': '在此浏览器打开 Harness Remote 标签页时显示。',
+    'settings.notificationsHintAndroid': '由后台连接显示，即使应用已关闭。',
+    'settings.notificationsBlocked': '已被浏览器阻止。请在浏览器设置中允许此网站的通知，然后在这里重新开启。',
+    'settings.notificationsUnsupported': '此浏览器无法显示通知。',
     'settings.activityHint': '代理在你的消息与它的回复之间所做的事：进度消息、推理与运行的工具。更改会立即应用到已打开的对话。',
     'settings.activityLive': '代理工作时',
     'settings.activityLive.latest': '显示最新进度',
@@ -3830,6 +3935,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.connectingBody': '正在发现项目、已安装的编码代理和原生会话。ACP harness 可能需要几秒钟启动。',
     'sf.loadingSessions': '加载会话',
     'sf.loadingSessionsBody': '正在读取各机器的编码代理所拥有的原生会话。',
+    'sf.loadingHarnessSessions': '正在加载会话：{names}',
+    'sf.waitingHarnessSessions': '仍在等待 {names}，正在重试…',
     'sf.configuredMachines': '已配置 {count} 台机器',
     'sf.machinesUnavailable': '机器不可用',
     'sf.couldNotConnect': 'Harness Remote 无法连接',
@@ -3837,6 +3944,9 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.manageMachines': '管理机器',
     'sf.openNativeSession': '打开原生会话',
     'sf.openNativeSessionBody': '从左侧选择会话，或在项目中启动新会话。你将继续由其编码代理拥有的同一个会话。',
+    'tray.open': '打开 Harness Remote',
+    'tray.quit': '退出 Harness Remote',
+    'tray.tooltip': 'Harness Remote · 后台通知已启用',
     'sf.onlineCount': '{count} 个在线',
     'sf.offlineCount': '{count} 个离线',
     'sf.nativeSessionTruth': '原生会话真实状态',
@@ -4502,6 +4612,23 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'act.verb.todo.done': 'Atualizou o plano',
     'act.verb.todo.live': 'Atualizando o plano',
     'settings.activityTitle': 'Atividade da conversa',
+    'settings.backgroundTitle': 'Conexão em segundo plano',
+    'settings.backgroundShow': 'Mostrar notificação de conexão',
+    'settings.backgroundHint': 'Restaure a notificação persistente se você a ocultou.',
+    'settings.backgroundRestored': 'Notificação restaurada',
+    'settings.backgroundUnavailable': 'Notificação indisponível. Verifique a permissão de notificações.',
+    'notify.sessionReady': 'Sessão pronta',
+    'notify.sessionFailed': 'Sessão falhou',
+    'settings.notificationsTitle': 'Notificações',
+    'settings.notificationsEnabled': 'Notificações neste dispositivo',
+    'settings.notificationsReady': 'Sessão pronta',
+    'settings.notificationsFailed': 'Sessão falhou',
+    'settings.notificationsAttention': 'Precisa de atenção',
+    'settings.notificationsHintDesktop': 'Você também pode desativá-las nas configurações de notificação do sistema para o Harness Remote.',
+    'settings.notificationsHintWeb': 'Exibidas enquanto uma aba do Harness Remote estiver aberta neste navegador.',
+    'settings.notificationsHintAndroid': 'Exibidas pela conexão em segundo plano, mesmo com o app fechado.',
+    'settings.notificationsBlocked': 'Bloqueadas pelo navegador. Permita notificações para este site nas configurações do navegador e ative-as novamente aqui.',
+    'settings.notificationsUnsupported': 'Este navegador não pode exibir notificações.',
     'settings.activityHint': 'O que o agente faz entre a sua mensagem e a resposta dele: atualizações, raciocínio e ferramentas que executa. As alterações valem imediatamente para as conversas abertas.',
     'settings.activityLive': 'Enquanto o agente trabalha',
     'settings.activityLive.latest': 'Mostrar a atualização mais recente',
@@ -4608,6 +4735,8 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.connectingBody': 'Descobrindo Projetos, agentes de código instalados e Sessões nativas. Um harness ACP pode levar alguns segundos para iniciar.',
     'sf.loadingSessions': 'Carregando Sessões',
     'sf.loadingSessionsBody': 'Lendo as Sessões nativas que pertencem aos agentes de código das máquinas conectadas.',
+    'sf.loadingHarnessSessions': 'Carregando Sessões: {names}',
+    'sf.waitingHarnessSessions': 'Ainda aguardando {names}, tentando novamente…',
     'sf.configuredMachines': '{count} máquinas configuradas',
     'sf.machinesUnavailable': 'Máquinas indisponíveis',
     'sf.couldNotConnect': 'O Harness Remote não conseguiu conectar',
@@ -4615,6 +4744,9 @@ const translations: Record<LanguageCode, Partial<Record<TranslationKey, string>>
     'sf.manageMachines': 'Gerenciar máquinas',
     'sf.openNativeSession': 'Abrir uma Sessão nativa',
     'sf.openNativeSessionBody': 'Selecione uma Sessão à esquerda ou inicie uma nova dentro de um Projeto. Você continuará a mesma Sessão pertencente ao agente de código dela.',
+    'tray.open': 'Abrir Harness Remote',
+    'tray.quit': 'Sair do Harness Remote',
+    'tray.tooltip': 'Harness Remote · notificações em segundo plano ativas',
     'sf.onlineCount': '{count} online',
     'sf.offlineCount': '{count} offline',
     'sf.nativeSessionTruth': 'Fonte da verdade da Sessão nativa',

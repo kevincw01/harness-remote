@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, Menu, Notification, nativeImage, screen, session, shell, ipcMain, type IpcMainInvokeEvent } from "electron"
+import { app, BrowserWindow, clipboard, dialog, Menu, Notification, nativeImage, powerSaveBlocker, screen, session, shell, Tray, ipcMain, type IpcMainInvokeEvent } from "electron"
 import { readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
@@ -6,8 +6,10 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { desktopTranslator, networkPairingDialogs, projectFolderDialogs } from "./desktop-locale.js"
 import { executeConfigurationProbe } from "./configuration-probe.js"
 import { buildApplicationMenu } from "./app-menu.js"
+import { buildTrayMenu, shouldHideWindowOnClose } from "./desktop-tray.js"
 import { buildContextMenu } from "./context-menu.js"
 import { EmbeddedDaemonRuntime, EMBEDDED_DAEMON_HOST, EMBEDDED_DAEMON_LAN_HOST, EMBEDDED_DAEMON_PROFILE_ID, embeddedDaemonEntry, type EmbeddedDaemonExit } from "./embedded-daemon.js"
+import { ActiveTurnSleepBlocker, readActiveAcpTurns } from "./active-turn-sleep-blocker.js"
 import { loadOrCreateEmbeddedDaemonAuth, type EmbeddedDaemonAuth } from "./embedded-daemon-auth.js"
 import { DesktopEventTransport } from "./event-transport.js"
 import { externalLinkUrl } from "./external-link.js"
@@ -56,11 +58,13 @@ function restoredBounds(state: SavedWindowState) {
 }
 
 let mainWindow: BrowserWindow | undefined
+let tray: Tray | undefined
 let registry: ProfileRegistry
 let projectRoots: ProjectRootsStore
 let networkSettings: NetworkSettingsStore
 let eventTransport: DesktopEventTransport
 let embeddedDaemon: EmbeddedDaemonRuntime | undefined
+let activeTurnSleepBlocker: ActiveTurnSleepBlocker | undefined
 let localRuntimeState: DesktopLocalRuntimeState = { status: "starting" }
 let localRuntimeStart: Promise<DesktopLocalRuntimeState> | undefined
 let runtimeRestarting = false
@@ -109,6 +113,8 @@ function clearLocalRuntimeProfile(): void {
 }
 
 function embeddedDaemonExited(details: EmbeddedDaemonExit): void {
+  activeTurnSleepBlocker?.stop()
+  activeTurnSleepBlocker = undefined
   clearLocalRuntimeProfile()
   const suffix = details.signal ? ` (${details.signal})` : details.code === null ? "" : ` (exit ${details.code})`
   localRuntimeState = { status: "unavailable", error: `Local desktop runtime stopped unexpectedly${suffix}.` }
@@ -125,6 +131,13 @@ function ensureLocalRuntime(): Promise<DesktopLocalRuntimeState> {
   clearLocalRuntimeProfile()
   localRuntimeState = { status: "starting" }
   localRuntimeStart = embeddedDaemon.start().then((ready) => {
+    activeTurnSleepBlocker?.stop()
+    activeTurnSleepBlocker = new ActiveTurnSleepBlocker(
+      () => readActiveAcpTurns(ready.endpoint),
+      () => powerSaveBlocker.start("prevent-app-suspension"),
+      (id) => { powerSaveBlocker.stop(id) }
+    )
+    activeTurnSleepBlocker.start()
     const endpoint = ready.endpoint
     const change = registry.setRuntimeProfile({
       id: endpoint.id,
@@ -240,7 +253,10 @@ function createWindow(): BrowserWindow {
       sandbox: true,
       nodeIntegration: false,
       webSecurity: true,
-      spellcheck: false
+      spellcheck: false,
+      // The window lives on in the tray. Chromium otherwise slows a hidden page's timers down to
+      // once a minute, which would delay "Session ready" by up to that long.
+      backgroundThrottling: false
     }
   })
   // Held separately because `closed` fires after the native window is gone, and reading
@@ -272,9 +288,13 @@ function createWindow(): BrowserWindow {
   window.on("move", scheduleWindowStateSave)
   window.on("maximize", scheduleWindowStateSave)
   window.on("unmaximize", scheduleWindowStateSave)
-  window.on("close", () => {
+  window.on("close", (event) => {
     saveWindowState()
     cancelWindowStateSave()
+    if (shouldHideWindowOnClose(quitting, tray !== undefined)) {
+      event.preventDefault()
+      window.hide()
+    }
   })
   window.on("focus", () => {
     // Guarded rather than left to fail quietly: setOverlayIcon is absent on macOS and Linux, not
@@ -333,6 +353,39 @@ function createWindow(): BrowserWindow {
   })
   void window.loadFile(rendererEntry).catch((error: unknown) => log(`renderer load rejected: ${error instanceof Error ? error.message : "unknown error"}`))
   return window
+}
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    mainWindow = createWindow()
+    return
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  if (!mainWindow.isVisible()) mainWindow.show()
+  mainWindow.focus()
+}
+
+function createTray(): void {
+  try {
+    const image = nativeImage.createFromPath(join(app.getAppPath(), "dist/app-icon.png"))
+    if (image.isEmpty()) {
+      log("tray icon is unavailable")
+      return
+    }
+    const icon = image.resize({ width: isMac ? 18 : 16, height: isMac ? 18 : 16 })
+    if (isMac) icon.setTemplateImage(true)
+    const t = desktopTranslator(app.getLocale())
+    tray = new Tray(icon)
+    tray.setToolTip(t("tray.tooltip"))
+    tray.setContextMenu(Menu.buildFromTemplate(buildTrayMenu(
+      { open: t("tray.open"), quit: t("tray.quit"), tooltip: t("tray.tooltip") },
+      { open: showMainWindow, quit: () => app.quit() }
+    )))
+    tray.on("click", showMainWindow)
+  } catch (error) {
+    tray = undefined
+    log(`tray could not be created: ${error instanceof Error ? error.message : "unknown error"}`)
+  }
 }
 
 function installIPC(): void {
@@ -542,6 +595,7 @@ async function start(): Promise<void> {
   if (!isDevelopment && !isMac) Menu.setApplicationMenu(null)
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
   mainWindow = createWindow()
+  createTray()
   if (app.isPackaged) {
     void latestUpdate().then((update) => {
       if (update.status !== "available" || !Notification.isSupported()) return
@@ -556,12 +610,23 @@ async function start(): Promise<void> {
   }
 }
 
-app.whenReady().then(() => start()).catch((error: unknown) => {
-  log(`startup failed: ${error instanceof Error ? error.message : "unknown error"}`)
+// Closing the window now only hides it in the tray, so launching the app again must reopen that
+// window instead of starting a second process with its own embedded daemon and tray icon.
+if (!app.requestSingleInstanceLock()) {
+  quitting = true
   app.quit()
-})
+} else {
+  app.on("second-instance", () => {
+    if (app.isReady()) showMainWindow()
+  })
+  app.whenReady().then(() => start()).catch((error: unknown) => {
+    log(`startup failed: ${error instanceof Error ? error.message : "unknown error"}`)
+    app.quit()
+  })
+}
 
 app.on("before-quit", (event) => {
+  activeTurnSleepBlocker?.stop()
   eventTransport?.closeAll()
   if (quitting) return
   event.preventDefault()
@@ -571,8 +636,9 @@ app.on("before-quit", (event) => {
 // Closing the last window ends the app everywhere except macOS, where an app with no windows is
 // still running and is expected to reopen one from the dock — which is what "activate" below does.
 app.on("window-all-closed", () => {
-  if (!isMac) app.quit()
+  if (isMac || quitting) return
+  if (!tray) app.quit()
 })
 app.on("activate", () => {
-  if (!mainWindow) mainWindow = createWindow()
+  showMainWindow()
 })

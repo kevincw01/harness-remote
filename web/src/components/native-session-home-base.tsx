@@ -22,7 +22,7 @@ import {
 } from "../native-session-federation-labels"
 import type { MachineAgentHost, MachineSnapshot, Session } from "../types"
 import { nativeSessionDisplayTitle } from "../native-session-title"
-import { countVisibleFinishedKeys, nextFinishedKeys, withoutFinishedKey, type SessionRailState } from "../native-session-unseen"
+import { countVisibleFinishedKeys, nextFinishedKeys, unseenKeysOutsideAttention, withoutFinishedKey, type SessionRailState } from "../native-session-unseen"
 import { useLanguage, useTranslator } from "../useTranslator"
 import type { Translator } from "../i18n"
 import type { WorkspaceMachine } from "../workspaceMachines"
@@ -127,7 +127,8 @@ type Props = {
   lifecycleRevision?: number
   /** The rail already counts Sessions needing input; the mobile nav needs that count outside it. */
   onAttentionCountChange?: (count: number) => void
-  /** Finished Sessions the user has not opened since, for the window title. */
+  /** Finished Sessions the user has not opened since, excluding those Attention already counts,
+   * for the window title. */
   onUnseenReadyCountChange?: (count: number) => void
   /** Structured pending permission/question identities from the global attention index. */
   attentionSessionKeys?: ReadonlySet<string>
@@ -502,6 +503,13 @@ function nativeCreateAgents(snapshot: MachineSnapshot): MachineAgentHost[] {
   return snapshot.agents.filter((agent) => agent.transport === "acp" || agent.transport === "http")
 }
 
+type AgentLoadState = "loading" | "retrying"
+
+function sameAgentLoad(a: Record<string, AgentLoadState>, b: Record<string, AgentLoadState>): boolean {
+  const keys = Object.keys(a)
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key])
+}
+
 export function NativeSessionHome({
   attentionInbox,
   sources,
@@ -553,6 +561,10 @@ export function NativeSessionHome({
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [discoveryError, setDiscoveryError] = useState<string | null>(null)
+  // Harnesses whose Sessions are not on screen yet, keyed by page scope. "loading" while the first
+  // read is in flight; "retrying" after it failed (a cold adapter can take minutes). Without this a
+  // machine showed its green dot and an empty list, with nothing saying that work was still going on.
+  const [agentLoad, setAgentLoad] = useState<Record<string, AgentLoadState>>({})
   const [loadingOlderMachines, setLoadingOlderMachines] = useState<ReadonlySet<string>>(() => new Set())
   const [probingOlderMachines, setProbingOlderMachines] = useState<ReadonlySet<string>>(() => new Set())
   const olderRequests = useRef(new Set<string>())
@@ -700,6 +712,7 @@ export function NativeSessionHome({
       setProjectsByMachine({})
       setPresentationOverrides({})
       setOlderSessionErrors({})
+      setAgentLoad({})
       setLoadedSignature(endpointSignature)
       setCurrentSignature(discoverySignature)
       setLoading(false)
@@ -720,6 +733,19 @@ export function NativeSessionHome({
     setDiscoveryError(null)
     setOlderSessionErrors({})
     const authoritativeRefresh = authoritativeRefreshToken !== authoritativeRefreshApplied.current
+    // Only a harness with nothing on screen yet gets an indicator: a background refresh of rows the
+    // user already sees stays quiet. A harness that failed before keeps "retrying" until it answers.
+    setAgentLoad((current) => {
+      const next: Record<string, AgentLoadState> = {}
+      for (const { machine, snapshot } of readySources) {
+        for (const agent of snapshot?.agents ?? []) {
+          const scope = pageScopeKey(machine.id, agent.id)
+          if (current[scope] === "retrying") next[scope] = "retrying"
+          else if (!pageCache.current.has(scope)) next[scope] = "loading"
+        }
+      }
+      return sameAgentLoad(current, next) ? current : next
+    })
     void Promise.all(readySources.map(async ({ machine, snapshot }) => {
       if (!snapshot) return { machine, snapshot, projects: [] as MachineProject[], pages: [] }
       const [pages, projects] = await Promise.all([
@@ -807,6 +833,19 @@ export function NativeSessionHome({
         }
       }))
       if (authoritativeRefresh) authoritativeRefreshApplied.current = authoritativeRefreshToken
+      // The rows above are now on screen, so the indicator ends together with them. A harness that
+      // did not answer stays marked while the retries and the periodic refresh keep asking.
+      setAgentLoad((current) => {
+        const next = { ...current }
+        for (const result of results) {
+          for (const { agent, page } of result.pages) {
+            const scope = pageScopeKey(result.machine.id, agent.id)
+            if (page) delete next[scope]
+            else next[scope] = "retrying"
+          }
+        }
+        return sameAgentLoad(current, next) ? current : next
+      })
       setLoadedSignature(endpointSignature)
       setCurrentSignature(discoverySignature)
     }).catch((reason) => {
@@ -900,7 +939,7 @@ export function NativeSessionHome({
     session: item.record.session,
     projectName: item.project?.name,
     projectPath: item.project?.path
-  }, liveStateForItem(item)), [liveStateForItem])
+  }, liveStateForItem(item), unseenKeys.has(recordKey(item))), [liveStateForItem, unseenKeys])
 
   // Compact skin: Sessions whose title matches a hide pattern (helper agents, reviewers, bots) leave
   // the list, its counters and Recent unless the user asks to see them.
@@ -913,15 +952,6 @@ export function NativeSessionHome({
     [hiddenKeys, records, showHidden]
   )
   const hiddenCount = hiddenKeys.size
-  // Hidden Sessions keep their unseen mark in `unseenKeys` for when they are shown again; only
-  // the published count (window title / global counter) excludes them while they are hidden.
-  const visibleUnseenCount = useMemo(
-    () => countVisibleFinishedKeys(unseenKeys, hiddenKeys, showHidden),
-    [hiddenKeys, showHidden, unseenKeys]
-  )
-  useEffect(() => {
-    onUnseenReadyCountChange?.(visibleUnseenCount)
-  }, [onUnseenReadyCountChange, visibleUnseenCount])
 
   const groups = useMemo(() => projectGroups(shownRecords), [shownRecords])
 
@@ -1084,6 +1114,16 @@ export function NativeSessionHome({
       .map(recordKey)
   ), [projectionForItem, scopedRecords])
   const attentionCount = attentionKeys.size
+  // Hidden Sessions keep their unseen mark in `unseenKeys` for when they are shown again; only
+  // the published count (window title / global counter) excludes them while they are hidden. An
+  // unseen finish already in Attention is not published here too, or the title would count it twice.
+  const visibleUnseenOnlyCount = useMemo(
+    () => countVisibleFinishedKeys(unseenKeysOutsideAttention(unseenKeys, attentionKeys), hiddenKeys, showHidden),
+    [attentionKeys, hiddenKeys, showHidden, unseenKeys]
+  )
+  useEffect(() => {
+    onUnseenReadyCountChange?.(visibleUnseenOnlyCount)
+  }, [onUnseenReadyCountChange, visibleUnseenOnlyCount])
   const operationalFilter: FederatedOperationalBucket | "" =
     filter === "failed" || filter === "completed" || filter === "recent" ? filter : ""
   const showOperationalFilter = bucketCounts.failed + bucketCounts.completed + bucketCounts.recent > 0 || Boolean(operationalFilter)
@@ -1166,9 +1206,13 @@ export function NativeSessionHome({
           count + group.sessions.filter((item) => projectionForItem(item).bucket === "attention").length, 0),
         unseenCount: projects.reduce((count, group) =>
           count + group.sessions.filter((item) => unseenKeys.has(recordKey(item))).length, 0),
-        updatedAt: projects.reduce((latest, group) => Math.max(latest, group.updatedAt), 0)
+        updatedAt: projects.reduce((latest, group) => Math.max(latest, group.updatedAt), 0),
+        pendingAgents: (snapshot?.agents ?? []).flatMap((agent) => {
+          const load = agentLoad[pageScopeKey(machine.id, agent.id)]
+          return load ? [{ label: agent.label || agent.id, load }] : []
+        })
       }]
-    }), [agentFilter, compactSkin, filter, filteredGroups, machineFilter, modelFilter, projectFilter, projectionForItem, query, recentsEnabled, sources, t, unseenKeys, probingOlderMachines])
+    }), [agentFilter, agentLoad, compactSkin, filter, filteredGroups, machineFilter, modelFilter, projectFilter, projectionForItem, query, recentsEnabled, sources, t, unseenKeys, probingOlderMachines])
 
   useEffect(() => {
     if (!hasSessionFilters) {
@@ -1708,7 +1752,7 @@ export function NativeSessionHome({
           </div>
         ) : null}
         <div className="hr-native-machine-list">
-          {machineGroups.map(({ machine, label, state, error, projects, sessionCount, workingCount, attentionCount: machineAttentionCount, unseenCount }) => {
+          {machineGroups.map(({ machine, label, state, error, projects, sessionCount, workingCount, attentionCount: machineAttentionCount, unseenCount, pendingAgents }) => {
             const machineCollapsed = collapsedMachines.has(machine.id)
             const loadingOlder = loadingOlderMachines.has(machine.id)
             const olderSessionError = olderSessionErrors[machine.id]
@@ -1739,13 +1783,39 @@ export function NativeSessionHome({
                     {machineAttentionCount ? <b>{t("sf.attentionCount", { count: machineAttentionCount })}</b> : null}
                     {unseenCount ? <span className="hr-native-machine-ready">{t("sf.readyCount", { count: unseenCount })}</span> : null}
                     {workingCount ? <em>{t("sf.liveCount", { count: workingCount })}</em> : null}
-                    <small>{state === "online" && loaded && !reconnecting ? sessionCount : state === "offline" ? t("sf.offline") : ""}</small>
+                    <small>{state === "online" && loaded && !reconnecting
+                      ? sessionCount
+                      : state === "offline"
+                        ? t("sf.offline")
+                        : <LoadingIcon size={12} />}</small>
                     <i className="hr-native-machine-chevron" aria-hidden="true"><ChevronDownIcon size={13} /></i>
                   </span>
                 </button>
                 {machineCollapsed ? null : (
                   <>
-                    {projects.length === 0 && !hasOlderSessions && state !== "loading" && !(state === "online" && (!snapshotLoaded || reconnecting)) ? (
+                    {state === "loading" ? (
+                      <div className="hr-native-machine-loading" role="status" aria-live="polite">
+                        <LoadingIcon size={13} />
+                        <span>{t("sf.machineConnecting")}</span>
+                      </div>
+                    ) : null}
+                    {state === "online" && pendingAgents.some(({ load }) => load === "loading") ? (
+                      <div className="hr-native-machine-loading" role="status" aria-live="polite">
+                        <LoadingIcon size={13} />
+                        <span>{t("sf.loadingHarnessSessions", {
+                          names: pendingAgents.filter(({ load }) => load === "loading").map(({ label }) => label).join(", ")
+                        })}</span>
+                      </div>
+                    ) : null}
+                    {state === "online" && pendingAgents.some(({ load }) => load === "retrying") ? (
+                      <div className="hr-native-machine-loading retrying" role="status" aria-live="polite">
+                        <LoadingIcon size={13} />
+                        <span>{t("sf.waitingHarnessSessions", {
+                          names: pendingAgents.filter(({ load }) => load === "retrying").map(({ label }) => label).join(", ")
+                        })}</span>
+                      </div>
+                    ) : null}
+                    {projects.length === 0 && !hasOlderSessions && state !== "loading" && pendingAgents.length === 0 && !(state === "online" && (!snapshotLoaded || reconnecting)) ? (
                       <div className="hr-native-machine-empty">
                         <ServerIcon size={15} />
                         <span>{state === "offline" ? t("sf.machineUnavailableSaved") : t("sf.noSessionsOnMachine")}</span>

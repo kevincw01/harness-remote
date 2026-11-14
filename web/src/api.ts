@@ -213,38 +213,49 @@ async function requestWithHeaders<T>(config: ServerConfig, path: string, options
     timedOut = true
     controller.abort()
   }, readTimeout)
-  let response: Response
+  const corsHint = hasCredentials(config)
+    ? " In a browser, Basic Auth also needs the bridge started with --cors for this origin."
+    : ""
+  const timeoutError = () =>
+    new Error(`Request to ${config.host}:${config.port} timed out after ${Math.ceil(readTimeout / 1000)}s.${corsHint}`)
+  // The deadline covers the whole exchange, body included. It used to end when the headers arrived,
+  // so a connection that stalled mid-body (sleep, lock screen, network change) left `response.json()`
+  // pending forever, and every later transcript refresh queued behind it: an open Session stopped
+  // updating until the user navigated away and back.
   try {
-    response = await fetch(target, {
-      method,
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: controller.signal
-    })
-  } catch {
-    const corsHint = hasCredentials(config)
-      ? " In a browser, Basic Auth also needs the bridge started with --cors for this origin."
-      : ""
-    if (timedOut) {
-      throw new Error(`Request to ${config.host}:${config.port} timed out after ${Math.ceil(readTimeout / 1000)}s.${corsHint}`)
+    let response: Response
+    try {
+      response = await fetch(target, {
+        method,
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: controller.signal
+      })
+    } catch {
+      if (timedOut) throw timeoutError()
+      throw new Error(`Cannot reach ${config.host}:${config.port}.${corsHint}`)
     }
-    throw new Error(`Cannot reach ${config.host}:${config.port}.${corsHint}`)
+
+    if (!response.ok) {
+      let detail = response.status === 401 ? unauthorizedDetail(config) : `HTTP ${response.status}`
+      try {
+        const body = await response.text()
+        detail = responseDetail(body) ?? detail
+      } catch {}
+      throw new MachineHttpError(detail, response.status)
+    }
+
+    const responseHeaders = normalizeHeaders(Object.fromEntries(response.headers.entries()))
+    if (response.status === 204) return { data: true as T, headers: responseHeaders }
+    try {
+      return { data: (await response.json()) as T, headers: responseHeaders }
+    } catch (error) {
+      if (timedOut) throw timeoutError()
+      throw error
+    }
   } finally {
     globalThis.clearTimeout(timer)
   }
-
-  if (!response.ok) {
-    let detail = response.status === 401 ? unauthorizedDetail(config) : `HTTP ${response.status}`
-    try {
-      const body = await response.text()
-      detail = responseDetail(body) ?? detail
-    } catch {}
-    throw new MachineHttpError(detail, response.status)
-  }
-
-  const responseHeaders = normalizeHeaders(Object.fromEntries(response.headers.entries()))
-  if (response.status === 204) return { data: true as T, headers: responseHeaders }
-  return { data: (await response.json()) as T, headers: responseHeaders }
 }
 
 async function request<T>(config: ServerConfig, path: string, options: RequestOptions = {}): Promise<T> {
@@ -346,7 +357,8 @@ export const api = {
   async listModels(config: ServerConfig, directory?: string, sessionID?: string) {
     const path = withDirectory("/config/providers", directory)
     const sessionPath = sessionID ? `${path}${path.includes("?") ? "&" : "?"}sessionID=${encodeURIComponent(sessionID)}` : path
-    const response = await request<ConfigProvidersResponse>(config, sessionPath)
+    const response = await request<ConfigProvidersResponse>(config, sessionPath,
+      config.backend === "deepseek" ? { readTimeout: 300_000 } : {})
     return response.providers.flatMap((provider) => {
       const defaultModel = response.default?.[provider.id]
       return Object.entries(provider.models).flatMap(([modelID, model]) => {
@@ -370,7 +382,12 @@ export const api = {
   },
 
   createSession(config: ServerConfig, title?: string, model?: ModelSelection, directory?: string) {
-    return request<Session>(config, withDirectory("/session", directory), { method: "POST", body: { title, model: toCreateSessionModel(model) } })
+    return request<Session>(config, withDirectory("/session", directory), {
+      method: "POST",
+      body: { title, model: toCreateSessionModel(model) },
+      // A fresh DeepSeek npx adapter can install and unpack its runtime during session creation.
+      ...(config.backend === "deepseek" ? { readTimeout: 300_000 } : {})
+    })
   },
 
   async listNativeSessionLinks(config: ServerConfig, identity: NativeSessionIdentityPayload) {

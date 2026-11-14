@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hr_bg_channel_name">后台连接</string>
+    <string name="hr_bg_channel_description">无需 Google 推送即可让 Harness Remote 保持与已配对机器的连接。</string>
+    <plurals name="hr_bg_connected_machines">
+        <item quantity="other">已连接 %d 台机器</item>
+    </plurals>
+    <plurals name="hr_bg_connecting_machines">
+        <item quantity="other">正在连接 %d 台机器…</item>
+    </plurals>
+    <string name="hr_bg_no_machines">未配置机器</string>
+    <string name="hr_bg_stop">停止</string>
+    <string name="hr_outcome_channel_name">Session 结果</string>
+    <string name="hr_outcome_channel_description">后台代理已就绪或失败的 Session。</string>
+    <string name="hr_outcome_ready_title">Session 已就绪</string>
+    <string name="hr_outcome_failed_title">Session 失败</string>
+    <string name="hr_outcome_ready_body">回合已结束。打开 Session 查看结果。</string>
+    <string name="hr_outcome_failed_body">Session 因错误而停止。</string>
+    <string name="hr_attention_channel_name">需要处理</string>
+    <string name="hr_attention_channel_description">需要你处理的权限和问题</string>
+    <string name="hr_attention_permission_title">需要授权</string>
+    <string name="hr_attention_question_title">需要输入</string>
+    <string name="hr_attention_permission_fallback">有权限请求</string>
+    <string name="hr_attention_question_fallback">编程代理正在等待你的输入。</string>
+    <string name="hr_attention_permission_consequence">在你允许或拒绝此请求之前，Session 会保持阻塞。</string>
+    <string name="hr_attention_question_consequence">在你回答此问题之前，Session 会保持阻塞。</string>
+    <string name="hr_attention_boundary">范围：%1$s</string>
+    <string name="hr_attention_allow_once">允许一次</string>
+    <string name="hr_attention_deny">拒绝</string>
+</resources>

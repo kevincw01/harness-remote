@@ -160,6 +160,60 @@ try {
   } finally {
     globalThis.setTimeout = originalSetTimeout
   }
+
+  // Headers can arrive and the body then stall (sleep, lock screen, network change). The deadline
+  // used to stop at the headers, leaving `response.json()` pending forever and the open Session's
+  // transcript refresh queue blocked behind it. The same deadline must abort the body read.
+  try {
+    globalThis.setTimeout = (callback, delay, ...args) => originalSetTimeout(callback, 5, ...args)
+    let bodyAborted = false
+    globalThis.fetch = async (_input, init = {}) => new Response(new ReadableStream({
+      start(stream) {
+        const fail = () => {
+          bodyAborted = true
+          stream.error(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+        }
+        if (init.signal?.aborted) fail()
+        else init.signal?.addEventListener('abort', fail, { once: true })
+        stream.enqueue(new TextEncoder().encode('[{"info":'))
+      }
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    await assert.rejects(
+      api.loadMessagePage({ backend: 'claude', host: 'stalled-body.invalid', port: 4097, username: 'harness', password: 'secret' }, 'session-1'),
+      /timed out after 30s/,
+      'a stalled response body must end with the request deadline'
+    )
+    assert.equal(bodyAborted, true, 'the deadline must abort the body stream, not only the headers')
+  } finally {
+    globalThis.setTimeout = originalSetTimeout
+  }
+
+  // A cold DeepSeek npx launch may install and unpack the runtime before either endpoint replies.
+  // Exercise the browser transport's actual abort timer for both UI requests.
+  for (const invoke of [
+    (config) => api.listModels(config),
+    (config) => api.createSession(config, 'cold start')
+  ]) {
+    let deepseekTimeoutDelay
+    let deepseekAborted = false
+    try {
+      globalThis.setTimeout = (callback, delay, ...args) => {
+        deepseekTimeoutDelay = delay
+        return originalSetTimeout(callback, 0, ...args)
+      }
+      globalThis.fetch = (_input, init = {}) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          deepseekAborted = true
+          reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+        }, { once: true })
+      })
+      await assert.rejects(invoke({ backend: 'deepseek', host: 'cold-start.invalid', port: 4098, username: '', password: '' }), /timed out after 300s/)
+      assert.equal(deepseekTimeoutDelay, 300_000)
+      assert.equal(deepseekAborted, true)
+    } finally {
+      globalThis.setTimeout = originalSetTimeout
+    }
+  }
 } finally {
   globalThis.fetch = originalFetch
 }
