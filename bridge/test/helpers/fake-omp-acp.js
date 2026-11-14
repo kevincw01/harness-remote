@@ -155,6 +155,14 @@ export class FakeOmpAcp extends EventEmitter {
         this.#bootstrap(sessionId)
         return { sessionId, configOptions: this.#configOptions(sessionId) }
       }
+      case "session/fork": {
+        const source = this.#record(params.sessionId)
+        const sessionId = `omp-${this.sessions.size + 1}`
+        await this.seedSession(sessionId, { entries: source.entries, title: source.title })
+        this.openSessions.add(sessionId)
+        this.#bootstrap(sessionId)
+        return { sessionId, configOptions: this.#configOptions(sessionId) }
+      }
       case "session/load": {
         this.#record(params.sessionId)
         this.openSessions.add(params.sessionId)

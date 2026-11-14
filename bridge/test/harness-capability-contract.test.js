@@ -54,6 +54,12 @@ test("Session-first contract separates discovery, transcript reads and writer ac
   }
 })
 
+test("Codex Session titles come from the native listing, not bridge snapshots", () => {
+  // Codex can persist a session name. Let that name win over a first-prompt fallback that an old
+  // snapshot may have recorded, otherwise the app keeps showing the prompt after the user renames.
+  assert.equal(harnessProfile("codex").preferListedTitles, true)
+})
+
 test("OpenCode capability contract describes daemon-owned SSE fanout and native HTTP Sessions", () => {
   const contract = openCodeCapabilityContract()
   assert.equal(contract.version, 2)

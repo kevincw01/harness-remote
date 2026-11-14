@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { api } from "../api"
+import { CloseIcon } from "../Icons"
 import { isMachineTransportFailure as transportFailure } from "../machine-request-error"
 import type { NativeSessionSurfaceTarget } from "../native-session-discovery"
 import { nativeSessionLineage, type NativeSessionLineageEntry } from "../native-session-lineage"
+import {
+  dismissLineage,
+  getLineageDismissalsSnapshot,
+  lineageSessionKey,
+  lineageSignature,
+  subscribeLineageDismissals
+} from "../native-session-lineage-dismissal"
 import type { NativeSessionRouteMachine } from "../native-session-routing"
 import type { ServerConfig } from "../types"
 
@@ -61,6 +69,11 @@ function evidenceLabel(entry: NativeSessionLineageEntry): string | null {
  */
 export function NativeSessionLineagePanel({ target, routes, interactionEnabled, onConnectionIssue }: Props) {
   const [entries, setEntries] = useState<NativeSessionLineageEntry[]>([])
+  const dismissals = useSyncExternalStore(
+    subscribeLineageDismissals,
+    getLineageDismissalsSnapshot,
+    getLineageDismissalsSnapshot
+  )
 
   useEffect(() => {
     let disposed = false
@@ -84,8 +97,18 @@ export function NativeSessionLineagePanel({ target, routes, interactionEnabled, 
     () => new Map(routes.map((route) => [route.machineID, route])),
     [routes]
   )
+  const sessionKey = lineageSessionKey(target.ref)
+  const signature = useMemo(() => lineageSignature(entries), [entries])
+  // The signature is the identity of the edges, not the Session. A later handoff changes it and
+  // reopens the panel, while navigating away and back keeps the exact same edges dismissed.
+  const dismissed = Boolean(signature) && dismissals[sessionKey] === signature
 
-  if (!entries.length) return null
+  function dismiss() {
+    if (!signature) return
+    dismissLineage(target.ref, entries)
+  }
+
+  if (!entries.length || dismissed) return null
 
   const identityLabel = (entry: NativeSessionLineageEntry) => {
     const machine = routeByMachine.get(entry.other.machineID)
@@ -98,6 +121,15 @@ export function NativeSessionLineagePanel({ target, routes, interactionEnabled, 
       <header>
         <strong>Handoff lineage</strong>
         <span>Durable task and Project evidence can be recovered here; native transcripts and authority stay separate.</span>
+        <button
+          type="button"
+          className="hr-native-lineage-dismiss"
+          onClick={dismiss}
+          aria-label="Dismiss handoff lineage"
+          title="Dismiss handoff lineage"
+        >
+          <CloseIcon size={14} />
+        </button>
       </header>
       <div className="hr-native-lineage-list">
         {entries.map((entry) => {

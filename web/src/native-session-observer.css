@@ -72,11 +72,35 @@
 }
 
 .hr-native-lineage > header {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: 8px;
   padding: 8px 10px;
+  padding-right: 42px;
   border-bottom: 1px solid var(--uw-border, rgba(127, 127, 127, 0.18));
+}
+
+.hr-native-lineage-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--tdw-muted, #9299a8);
+  background: transparent;
+  cursor: pointer;
+}
+
+.hr-native-lineage-dismiss:hover,
+.hr-native-lineage-dismiss:focus-visible {
+  color: var(--tdw-text, #e6e8ee);
+  background: var(--tdw-panel-2, rgba(127, 127, 127, 0.12));
 }
 
 .hr-native-lineage > header strong {
@@ -430,6 +454,14 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 3px;
+    padding-right: 50px;
+  }
+
+  .hr-native-lineage-dismiss {
+    width: 44px;
+    height: 44px;
+    top: 2px;
+    right: 2px;
   }
 
   .hr-native-lineage-list {

@@ -61,6 +61,7 @@ export async function createNativeSessionTarget({
     modelsSupported: agent.capabilities?.models === true,
     renameSupported: agent.capabilities?.sessionRename === true,
     deleteSupported: agent.capabilities?.sessionDelete === true,
+    forkSupported: agent.capabilities?.sessionFork === true,
     writerOwned: true,
     session
   }

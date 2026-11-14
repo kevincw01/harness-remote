@@ -378,6 +378,28 @@ export const CopyIcon = ({ className = "", size = 20 }: { className?: string; si
   </svg>
 )
 
+export const ForkIcon = ({ className = "", size = 20 }: { className?: string; size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    role="img"
+    aria-label="Fork"
+  >
+    <circle cx="6" cy="5" r="2" />
+    <circle cx="18" cy="5" r="2" />
+    <circle cx="12" cy="19" r="2" />
+    <path d="M6 7v2a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V7" />
+    <path d="M12 13v4" />
+  </svg>
+)
+
 export const CheckIcon = ({ className = "", size = 20 }: { className?: string; size?: number }) => (
   <svg
     width={size}

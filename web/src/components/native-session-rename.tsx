@@ -138,7 +138,14 @@ export function NativeSessionTitle({ target, onRenamed }: Props) {
             if (settledRef.current || busy) return
             window.setTimeout(() => {
               if (settledRef.current || busy || !inputRef.current) return
+              // Save/Cancel live inside the title field. The delete control and its confirmation
+              // dialog live in the sibling actions row; opening them must not commit or cancel the
+              // rename, which would hide that row (and the dialog) on the compact header.
               if (inputRef.current.parentElement?.contains(document.activeElement)) return
+              const actions = inputRef.current
+                .closest(".hr-native-workspace-session-header")
+                ?.querySelector(".hr-session-actions")
+              if (actions?.contains(document.activeElement)) return
               void commit()
             }, 0)
           }}

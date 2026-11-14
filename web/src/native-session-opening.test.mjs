@@ -7,7 +7,7 @@ const config = { host: "127.0.0.1", port: 4097, username: "test", password: "", 
 const record = {
   key: "opencode:opening", agentId: "opencode", agentLabel: "OpenCode", backend: "opencode",
   transport: "http", abortSupported: true, modelsSupported: true, renameSupported: true,
-  deleteSupported: true, session: { id: "opening", title: "Busy Session", directory: "/repo" },
+  deleteSupported: true, forkSupported: true, session: { id: "opening", title: "Busy Session", directory: "/repo" },
   status: { type: "idle" }
 }
 

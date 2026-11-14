@@ -375,6 +375,8 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .hr-native-session-row:hover,

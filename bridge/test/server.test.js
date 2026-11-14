@@ -126,6 +126,47 @@ class ReplayAcp extends EventEmitter {
   notify() {}
 }
 
+class ForkAcp extends FakeAcp {
+  sessionCapabilities = { fork: {} }
+  forked = null
+  forkParams = null
+  forkTitle = "Forked"
+
+  async listSessions() {
+    const listed = await super.listSessions()
+    return this.forked
+      ? [...listed, { sessionId: this.forked, title: this.forkTitle, cwd: process.cwd(), updatedAt: "2026-07-31T00:00:00.000Z" }]
+      : listed
+  }
+
+  async request(method, params) {
+    if (method === "session/fork") {
+      this.forked = "session-fork"
+      this.forkParams = params
+      return { sessionId: this.forked }
+    }
+    if (method === "session/load") {
+      this.emit("notification", {
+        method: "session/update",
+        params: {
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "available_commands_update",
+            availableCommands: [{ name: "rename", description: "Rename the current session", input: { hint: "<title>" } }]
+          }
+        }
+      })
+      return { configOptions: [] }
+    }
+    if (method === "session/prompt") {
+      const text = params.prompt?.[0]?.text
+      if (typeof text === "string" && text.startsWith("/rename ")) this.forkTitle = text.slice("/rename ".length).trim()
+      return { stopReason: "end_turn" }
+    }
+    return super.request(method, params)
+  }
+}
+
 class FreshnessAcp extends EventEmitter {
   agentInfo = { version: "17.0.8" }
   revision = "2026-07-23T00:00:00.000Z"
@@ -873,6 +914,29 @@ test("falls back to ACP replay when a paged journal cannot locate the Session", 
   assert.ok(page.messages.some((message) => message.parts.some((part) => part.text === "Persist this prompt")))
   assert.ok(page.messages.some((message) => message.parts.some((part) => part.text === "Persist this response")))
   assert.equal(acp.loads, 1, "an absent journal file must not masquerade as a valid empty transcript")
+})
+
+test("forks an ACP Session with the name chosen on the phone", async () => {
+  const acp = new ForkAcp()
+  const bridge = await startServer({ acp })
+  try {
+    const response = await fetch(`${bridge.baseURL}/session/session-1/fork`, {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({ title: "Forked from phone" })
+    })
+    assert.equal(response.status, 200)
+    const forked = await response.json()
+    assert.equal(forked.id, "session-fork")
+    assert.equal(forked.title, "Forked from phone")
+    assert.deepEqual(acp.forkParams, {
+      sessionId: "session-1",
+      cwd: process.cwd(),
+      mcpServers: []
+    })
+  } finally {
+    await bridge.close()
+  }
 })
 
 test("renames and hides ACP sessions through OpenCode-compatible endpoints", async () => {

@@ -484,6 +484,34 @@ test("renaming a Session later persists the same way and leaves no trace in the 
   }
 })
 
+test("forking a Session copies its transcript and stores the chosen name", async () => {
+  const { acp, service, cleanup } = await harness()
+  try {
+    const source = await service.createSession({ directory: "/repo", title: "Original" })
+    acp.queueTurn({ text: ["Source answer"] })
+    await service.promptAndWait(source.id, "Source prompt")
+
+    const forked = await service.forkSession(source.id, "Forked name")
+    assert.notEqual(forked.id, source.id)
+    assert.equal(forked.title, "Forked name")
+    assert.deepEqual(acp.calls("session/fork"), [[
+      "session/fork",
+      { sessionId: source.id, cwd: "/repo", mcpServers: [] }
+    ]])
+    assert.equal(acp.calls("session/prompt").at(-1)[1].prompt[0].text, "/rename Forked name")
+
+    const forkedMessages = await tail(service, forked.id)
+    assert.deepEqual(
+      forkedMessages.filter((message) => message.info.role === "user").map((message) => message.parts[0].text),
+      ["Source prompt"],
+      "the forked Session must start with the source transcript"
+    )
+    assert.equal((await service.listSessions()).find((session) => session.id === forked.id)?.title, "Forked name")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("a Session named in OMP itself keeps that name here", async () => {
   const { acp, service, cleanup } = await harness()
   try {

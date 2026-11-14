@@ -26,6 +26,7 @@ export type HarnessCapabilities = {
   actions: boolean
   sessionRename: boolean
   sessionDelete: boolean
+  sessionFork: boolean
   attachments: boolean
   /** What happens to a prompt sent while a reply is already streaming: "steer" forwards it into the
    * live turn (the agent reads it immediately), "queue" holds it behind the running turn. */

@@ -7,8 +7,14 @@
   overflow: hidden;
 }
 
+.hr-native-outcome-head {
+  display: flex;
+  align-items: stretch;
+}
+
 .hr-native-outcome-toggle {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   min-height: 38px;
   display: grid;
   grid-template-columns: minmax(130px, .65fr) minmax(0, 1.35fr) auto;
@@ -20,6 +26,24 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.hr-native-outcome-dismiss {
+  flex: none;
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--tdw-muted, #9299a8);
+  background: transparent;
+  cursor: pointer;
+}
+
+.hr-native-outcome-dismiss:hover,
+.hr-native-outcome-dismiss:focus-visible {
+  color: var(--tdw-text, #e6e8ee);
+  background: var(--tdw-panel-2, rgba(127, 127, 127, 0.12));
 }
 
 .hr-native-outcome-toggle::after {
@@ -155,6 +179,12 @@
   border-radius: inherit;
 }
 
+.hr-native-outcome.compact .hr-native-outcome-dismiss {
+  width: 28px;
+  min-width: 28px;
+  border-radius: 999px;
+}
+
 .hr-native-outcome.compact .hr-native-outcome-title {
   position: absolute;
   width: 1px;
@@ -196,6 +226,11 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 8px;
     padding: 5px 10px;
+  }
+
+  .hr-native-outcome:not(.compact) .hr-native-outcome-dismiss {
+    width: 40px;
+    min-width: 40px;
   }
 
   .hr-native-outcome:not(.compact) .hr-native-outcome-title small {

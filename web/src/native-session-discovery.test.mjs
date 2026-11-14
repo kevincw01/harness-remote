@@ -138,6 +138,7 @@ assert.deepEqual(nativeSessionSurfaceTarget('machine-1', base, codexSessions[0])
   commandsSupported: false,
   renameSupported: false,
   deleteSupported: false,
+  forkSupported: false,
   model: { providerID: 'openai', modelID: 'gpt-5.6', variant: 'high' },
   parentID: 'parent-1',
   summary: { additions: 12, deletions: 3, files: 2 },
