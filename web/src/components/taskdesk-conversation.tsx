@@ -500,6 +500,7 @@ export function TaskDeskConversation({
   // A consumer that never allows mid-turn prompts keeps the old gate: nothing is sent while a turn is
   // waiting or its reply is being prepared. One whose harness steers or queues opts in explicitly.
   const midTurnSend = canSendWhileWaiting && (waiting || sending)
+  const attachmentDisabled = !ready || composerDisabled || sending || waiting || attachments.length >= ATTACHMENT_MAX_COUNT
   const canSend = Boolean(
     draft.trim()
     && (midTurnSend || (!sending && !waiting))
@@ -676,35 +677,35 @@ export function TaskDeskConversation({
           <div>
             {attachmentsSupported ? (
               <>
-                <input
-                  ref={attachmentInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  hidden
-                  onChange={async (event) => {
-                    const room = Math.max(0, ATTACHMENT_MAX_COUNT - attachments.length)
-                    const chosen = Array.from(event.target.files ?? []).slice(0, room)
-                    event.target.value = ""
-                    if (!chosen.length) return
-                    try {
-                      const prepared = await Promise.all(chosen.map((file) => fileToAttachment(file)))
-                      onAttachmentsChange?.([...attachments, ...prepared])
-                    } catch (reason) {
-                      onAttachmentError?.(reason instanceof Error ? reason.message : String(reason))
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="uw-button"
-                  disabled={!ready || composerDisabled || sending || waiting || attachments.length >= ATTACHMENT_MAX_COUNT}
-                  onClick={() => attachmentInputRef.current?.click()}
+                <label
+                  className="uw-button uw-composer-attach"
                   aria-label="Attach image"
+                  aria-disabled={attachmentDisabled || undefined}
                   title="Attach image"
                 >
-                  <PaperclipIcon size={15} />
-                </button>
+                  <span aria-hidden="true"><PaperclipIcon size={15} /></span>
+                  <input
+                    ref={attachmentInputRef}
+                    className="uw-composer-attach-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={attachmentDisabled}
+                    aria-label="Attach image"
+                    onChange={async (event) => {
+                      const room = Math.max(0, ATTACHMENT_MAX_COUNT - attachments.length)
+                      const chosen = Array.from(event.target.files ?? []).slice(0, room)
+                      event.target.value = ""
+                      if (!chosen.length) return
+                      try {
+                        const prepared = await Promise.all(chosen.map((file) => fileToAttachment(file)))
+                        onAttachmentsChange?.([...attachments, ...prepared])
+                      } catch (reason) {
+                        onAttachmentError?.(reason instanceof Error ? reason.message : String(reason))
+                      }
+                    }}
+                  />
+                </label>
               </>
             ) : null}
             {composerAccessory}

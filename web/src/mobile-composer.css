@@ -108,3 +108,15 @@
     max-width: 48%;
   }
 }
+
+/* Keep the attachment hit area at the platform minimum; the icon is deliberately smaller. */
+@media (max-width: 780px) {
+  :root[data-skin] .hr-control-plane .tdw-work-thread-conversation .uw-composer-footer .uw-composer-attach,
+  :root[data-skin] .hr-native-session-observer .uw-composer-footer .uw-composer-attach {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 12px !important;
+  }
+}
