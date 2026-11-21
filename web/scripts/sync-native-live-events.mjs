@@ -1,11 +1,12 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 
 const root = resolve(import.meta.dirname, "..")
 const source = resolve(root, "native-android")
 const target = resolve(root, "android/app/src/main/java/ai/harness/remote")
 const manifest = resolve(root, "android/app/src/main/AndroidManifest.xml")
 const appGradle = resolve(root, "android/app/build.gradle")
+const filePaths = resolve(root, "android/app/src/main/res/xml/file_paths.xml")
 
 if (!existsSync(target)) throw new Error("Android project not found; run npx cap sync android first")
 const javaFiles = [
@@ -34,6 +35,9 @@ const javaFiles = [
 for (const file of javaFiles) {
   cpSync(resolve(source, file), resolve(target, file))
 }
+
+mkdirSync(dirname(filePaths), { recursive: true })
+cpSync(resolve(source, "file_paths.xml"), filePaths)
 
 // Native tests and the icon/strings the service needs are kept beside the Java sources and copied
 // into the generated project, because web/android itself is intentionally not tracked.
@@ -75,6 +79,14 @@ for (const permission of requiredPermissions) {
   manifestText = manifestText.replace(
     /(<manifest\b[^>]*>)/,
     `$1\n    <uses-permission android:name="${permission}" />`
+  )
+  changed = true
+}
+
+if (!manifestText.includes('android.permission.WRITE_EXTERNAL_STORAGE')) {
+  manifestText = manifestText.replace(
+    /(<manifest\b[^>]*>)/,
+    `$1\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />`
   )
   changed = true
 }
@@ -121,6 +133,18 @@ if (!manifestText.includes(attentionMarker)) {
                 <data android:scheme="harnessremote" android:host="attention" />
             </intent-filter>`
   manifestText = manifestText.replace(activityPattern, `$1$2${attentionFilter}\n        $3`)
+  changed = true
+}
+
+// Generated-image viewing/saving hands a cache file to the Android viewer through a FileProvider.
+const fileProviderMarker = 'androidx.core.content.FileProvider'
+if (!manifestText.includes(fileProviderMarker)) {
+  const applicationClose = '</application>'
+  if (!manifestText.includes(applicationClose)) throw new Error("Android application close tag not found after Capacitor sync")
+  manifestText = manifestText.replace(
+    applicationClose,
+    `        <provider\n            android:name="androidx.core.content.FileProvider"\n            android:authorities="\${applicationId}.fileprovider"\n            android:exported="false"\n            android:grantUriPermissions="true">\n            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />\n        </provider>\n    </application>`
+  )
   changed = true
 }
 
