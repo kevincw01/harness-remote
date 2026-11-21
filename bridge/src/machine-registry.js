@@ -4,6 +4,9 @@ import { hostname } from "node:os"
 import path from "node:path"
 
 const IDENTITY_FILE = "machine.json"
+const DISABLED_AGENT_IDS = new Set(
+  (process.env.HARNESS_REMOTE_DISABLED_AGENTS ?? "").split(",").map((id) => id.trim()).filter(Boolean)
+)
 
 function validIdentity(value) {
   return value && typeof value.id === "string" && value.id.length > 0 && typeof value.name === "string" && value.name.length > 0
@@ -129,7 +132,9 @@ export class MachineRegistry {
   snapshot() {
     return {
       machine: { ...this.identity },
-      agents: [...this.hosts.values()].map(publicHost)
+      agents: [...this.hosts.values()]
+        .filter((host) => !DISABLED_AGENT_IDS.has(host.id))
+        .map(publicHost)
     }
   }
 }

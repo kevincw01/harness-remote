@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(BackgroundAttentionPlugin.class);
+        registerPlugin(GeneratedImagePlugin.class);
         registerPlugin(LiveEventsPlugin.class);
         registerPlugin(PairingScannerPlugin.class);
         super.onCreate(savedInstanceState);

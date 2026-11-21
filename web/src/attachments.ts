@@ -73,7 +73,7 @@ export async function fileToAttachment(
 }
 
 export const WORKSPACE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
-export const WORKSPACE_ATTACHMENT_EXTENSIONS = [".csv", ".xlsx", ".xls"] as const
+export const WORKSPACE_ATTACHMENT_EXTENSIONS = [".csv", ".xlsx", ".xls", ".ino"] as const
 
 export type WorkspaceAttachment = {
   filename: string
@@ -107,7 +107,7 @@ export async function workspaceAttachmentPayload(
   maxBytes = WORKSPACE_ATTACHMENT_MAX_BYTES
 ): Promise<WorkspaceAttachmentPayload> {
   if (!isWorkspaceAttachmentFile(file)) {
-    throw new Error("Only CSV, XLSX and XLS files can be attached as workspace files")
+    throw new Error("Only CSV, XLSX, XLS and INO files can be attached as workspace files")
   }
   if (file.size > maxBytes) throw new Error("Each file attachment must stay under 10MB")
   if (file.size === 0) throw new Error("The selected file is empty")

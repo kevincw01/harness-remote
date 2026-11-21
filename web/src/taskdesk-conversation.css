@@ -606,3 +606,87 @@
     max-height: calc(100dvh - 92px);
   }
 }
+
+/* The phone file picker must open from the tap itself. A separate button that calls input.click()
+   loses that gesture when the textarea blurs, so the icon is a label over the real file input. */
+.tdw-work-thread-conversation .uw-composer-attach {
+  position: relative;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.tdw-work-thread-conversation .uw-composer-attach-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+
+.tdw-work-thread-conversation .uw-composer-attach:has(input:disabled) {
+  opacity: .55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Generated image tool results are content, not just another collapsed Activity row. */
+.tdw-work-thread-conversation .uw-generated-image {
+  margin: 10px 0 0;
+  max-width: min(720px, 100%);
+}
+
+.tdw-work-thread-conversation .uw-generated-image-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.tdw-work-thread-conversation .uw-generated-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--td3-border);
+  border-radius: 12px;
+  background: var(--td3-raise-1);
+}
+
+.tdw-work-thread-conversation .uw-generated-image figcaption {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 2px 0;
+  color: var(--td3-muted);
+  font-size: 11px;
+}
+
+.tdw-work-thread-conversation .uw-generated-image figcaption span {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.tdw-work-thread-conversation .uw-generated-image-download {
+  flex: none;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--td3-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.tdw-work-thread-conversation .uw-generated-image-status {
+  display: block;
+  padding-top: 5px;
+  color: var(--td3-muted);
+  font-size: 10.5px;
+}

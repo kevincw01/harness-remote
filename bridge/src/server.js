@@ -16,7 +16,7 @@ const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 const MAX_ATTACHMENT_TOTAL_BYTES = 15 * 1024 * 1024
 const MAX_MESSAGE_PAGE = 500
 const MAX_WORKSPACE_ATTACHMENT_BYTES = 10 * 1024 * 1024
-const WORKSPACE_ATTACHMENT_EXTENSIONS = new Set([".csv", ".xlsx", ".xls"])
+const WORKSPACE_ATTACHMENT_EXTENSIONS = new Set([".csv", ".xlsx", ".xls", ".ino"])
 
 /**
  * Claude's ACP adapter can leave the service bookkeeping flag active after the visible turn has
@@ -76,7 +76,7 @@ function workspaceAttachmentFilename(value) {
   const original = path.basename(typeof value === "string" ? value : "")
   const extension = path.extname(original).toLowerCase()
   if (!WORKSPACE_ATTACHMENT_EXTENSIONS.has(extension)) {
-    throw new Error("Unsupported attachment type: accepted files are .csv, .xlsx and .xls")
+    throw new Error("Unsupported attachment type: accepted files are .csv, .xlsx, .xls and .ino")
   }
   const stem = original
     .slice(0, -extension.length)

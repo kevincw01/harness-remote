@@ -520,11 +520,12 @@ export function TaskDeskConversation({
   const hint = footerHint ?? (touchFirst ? "Enter adds a line. Tap Send to send." : "Enter to send · Shift+Enter for a newline")
   const attachmentEnabled = attachmentsSupported || Boolean(onWorkspaceFilesSelected)
   const attachmentCount = attachments.length + workspaceAttachments.length
+  const attachmentDisabled = !ready || composerDisabled || sending || waiting || attachmentCount >= ATTACHMENT_MAX_COUNT
   const attachmentAccept = [
     ...(attachmentsSupported ? ["image/*"] : []),
     ...(onWorkspaceFilesSelected
       ? [
-          ".csv", ".xlsx", ".xls",
+          ".csv", ".xlsx", ".xls", ".ino",
           "text/csv",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "application/vnd.ms-excel"
@@ -724,45 +725,45 @@ export function TaskDeskConversation({
           <div>
             {attachmentEnabled ? (
               <>
-                <input
-                  ref={attachmentInputRef}
-                  type="file"
-                  accept={attachmentAccept}
-                  multiple
-                  hidden
-                  onChange={async (event) => {
-                    const room = Math.max(0, ATTACHMENT_MAX_COUNT - attachmentCount)
-                    const chosen = Array.from(event.target.files ?? []).slice(0, room)
-                    event.target.value = ""
-                    if (!chosen.length) return
-                    const imageFiles = attachmentsSupported
-                      ? chosen.filter((file) => file.type.startsWith("image/"))
-                      : []
-                    const workspaceFiles = onWorkspaceFilesSelected
-                      ? chosen.filter((file) => !file.type.startsWith("image/"))
-                      : []
-                    try {
-                      const prepared = await Promise.all(imageFiles.map((file) => fileToAttachment(file)))
-                      if (prepared.length) onAttachmentsChange?.([...attachments, ...prepared])
-                      if (workspaceFiles.length) {
-                        const uploaded = await onWorkspaceFilesSelected?.(workspaceFiles) ?? []
-                        if (uploaded.length) onWorkspaceAttachmentsChange?.([...workspaceAttachments, ...uploaded])
-                      }
-                    } catch (reason) {
-                      onAttachmentError?.(reason instanceof Error ? reason.message : String(reason))
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="uw-button"
-                  disabled={!ready || composerDisabled || sending || waiting || attachmentCount >= ATTACHMENT_MAX_COUNT}
-                  onClick={() => attachmentInputRef.current?.click()}
+                <label
+                  className="uw-button uw-composer-attach"
                   aria-label="Attach image or file"
+                  aria-disabled={attachmentDisabled || undefined}
                   title="Attach image or file"
                 >
-                  <PaperclipIcon size={15} />
-                </button>
+                  <span aria-hidden="true"><PaperclipIcon size={15} /></span>
+                  <input
+                    ref={attachmentInputRef}
+                    className="uw-composer-attach-input"
+                    type="file"
+                    accept={attachmentAccept}
+                    multiple
+                    disabled={attachmentDisabled}
+                    aria-label="Attach image or file"
+                    onChange={async (event) => {
+                      const room = Math.max(0, ATTACHMENT_MAX_COUNT - attachmentCount)
+                      const chosen = Array.from(event.target.files ?? []).slice(0, room)
+                      event.target.value = ""
+                      if (!chosen.length) return
+                      const imageFiles = attachmentsSupported
+                        ? chosen.filter((file) => file.type.startsWith("image/"))
+                        : []
+                      const workspaceFiles = onWorkspaceFilesSelected
+                        ? chosen.filter((file) => !file.type.startsWith("image/"))
+                        : []
+                      try {
+                        const prepared = await Promise.all(imageFiles.map((file) => fileToAttachment(file)))
+                        if (prepared.length) onAttachmentsChange?.([...attachments, ...prepared])
+                        if (workspaceFiles.length) {
+                          const uploaded = await onWorkspaceFilesSelected?.(workspaceFiles) ?? []
+                          if (uploaded.length) onWorkspaceAttachmentsChange?.([...workspaceAttachments, ...uploaded])
+                        }
+                      } catch (reason) {
+                        onAttachmentError?.(reason instanceof Error ? reason.message : String(reason))
+                      }
+                    }}
+                  />
+                </label>
               </>
             ) : null}
             {composerAccessory}

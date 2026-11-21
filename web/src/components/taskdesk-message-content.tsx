@@ -1,8 +1,10 @@
+import { useMemo, useState } from "react"
 import { isInternalProtocolPart } from "../activity-model"
 import { useActivityPreferences } from "../activity-preferences"
 import { groupConversationParts, type ConversationPartGroup } from "../conversation-parts"
 import { PaperclipIcon } from "../Icons"
 import type { MessageEnvelope, MessagePart } from "../types"
+import { openGeneratedImage, saveGeneratedImage } from "../generated-image"
 import { ActivitySection, UnsupportedPart } from "./activity-timeline"
 import { CopyButton, Markdown } from "./message-markdown"
 
@@ -79,6 +81,74 @@ function hasTerminalAssistantText(parts: MessagePart[], reportedError = ""): boo
   return false
 }
 
+
+type GeneratedImage = { id: string; src: string; filename: string; prompt?: string }
+
+function generatedImagesFor(parts: MessagePart[]): GeneratedImage[] {
+  const images = new Map<string, GeneratedImage>()
+  for (const part of parts) {
+    if (part.type !== "tool") continue
+    const output = part.state?.output
+    let parsed: Record<string, unknown> | undefined
+    if (typeof output === "string") {
+      try { parsed = JSON.parse(output) as Record<string, unknown> } catch { parsed = undefined }
+    }
+    if (part.tool === "Image generation" && parsed) {
+      const result = typeof parsed.result === "string" ? parsed.result : ""
+      const savedPath = typeof parsed.savedPath === "string" ? parsed.savedPath : ""
+      const pathID = savedPath.split("/").pop()?.replace(/\.[^.]+$/, "")
+      const id = pathID || part.callID || part.id
+      if (result) {
+        const src = result.startsWith("data:") ? result : `data:image/png;base64,${result}`
+        images.set(id, {
+          id,
+          src,
+          filename: `${id}.${savedPath.split(".").pop() || "png"}`,
+          prompt: typeof parsed.revisedPrompt === "string" ? parsed.revisedPrompt : undefined
+        })
+      }
+      continue
+    }
+    const path = typeof part.state?.input?.path === "string" ? part.state.input.path : ""
+    if (part.tool?.startsWith("View Image") && path.includes("/generated_images/")) {
+      const pathID = path.split("/").pop()?.replace(/\.[^.]+$/, "")
+      if (pathID && !images.has(pathID)) images.set(pathID, { id: pathID, src: "", filename: `${pathID}.png` })
+    }
+  }
+  return [...images.values()].filter((image) => image.src)
+}
+
+function GeneratedImageCard({ image }: { image: GeneratedImage }) {
+  const [status, setStatus] = useState("")
+  return (
+    <figure className="uw-generated-image">
+      <button
+        type="button"
+        className="uw-generated-image-open"
+        aria-label="Open generated image"
+        onClick={() => void openGeneratedImage(image.src, image.filename).catch((reason) => {
+          setStatus(reason instanceof Error ? reason.message : String(reason))
+        })}
+      >
+        <img src={image.src} alt={image.prompt || "Generated image"} loading="lazy" decoding="async" />
+      </button>
+      <figcaption>
+        <span>{image.prompt || "Generated image"}</span>
+        <button
+          type="button"
+          className="uw-generated-image-download"
+          onClick={() => void saveGeneratedImage(image.src, image.filename).then(setStatus).catch((reason) => {
+            setStatus(reason instanceof Error ? reason.message : String(reason))
+          })}
+        >
+          Download
+        </button>
+      </figcaption>
+      {status ? <small className="uw-generated-image-status" role="status">{status}</small> : null}
+    </figure>
+  )
+}
+
 function AttachmentPartCard({ part }: { part: MessagePart }) {
   const label = part.filename || "Attached image"
   const isImage = (part.mime || "").startsWith("image/") && typeof part.url === "string" && part.url.startsWith("data:")
@@ -98,6 +168,11 @@ function ContentGroup({ group }: { group: ContentGroupValue }) {
     .filter((part) => part.type === "text" && typeof part.text === "string" && part.text.trim())
     .map((part) => part.text!.trim())
     .join("\n\n")
+    // The generated-image card has the real file. A host-local Markdown link would resolve to
+    // http://localhost/... in the app and 404; strip it rather than showing a dead URL.
+    .replace(/\[[^\]]*\]\(<?\/[^)\n]*\/generated_images\/[^)\n]*>?\)/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
   const other = group.parts.filter((part) => part.type !== "text" && !isInternalProtocolPart(part))
 
   return (
@@ -199,6 +274,7 @@ export function TaskDeskMessageContent({ message }: { message: MessageEnvelope }
     return !(reportedError && part.type === "text" && textMirrorsReportedError(part.text, reportedError))
   })
   const activityPreferences = useActivityPreferences()
+  const generatedImages = useMemo(() => generatedImagesFor(message.parts), [message.parts])
   const groups = groupConversationParts(visibleParts, {
     forceActivity: liveAssistant,
     forceRunning: liveAssistant
@@ -224,6 +300,7 @@ export function TaskDeskMessageContent({ message }: { message: MessageEnvelope }
         if (group.kind === "content") return <ContentGroup group={group} key={key} />
         return <ActivitySection group={group} preferences={activityPreferences} key={key} />
       })}
+      {generatedImages.map((image) => <GeneratedImageCard image={image} key={image.id} />)}
       {turnError ? <div className="uw-message-turn-error" role="alert"><strong>Turn failed</strong><span>{turnError}</span></div> : null}
       {interruptedWithoutFinal ? <div className="uw-message-turn-error" role="alert"><strong>Response interrupted</strong><span>The coding agent stopped before producing a final answer.</span></div> : null}
       {stopped ? <div className="uw-message-turn-stopped" role="note">Interrupted</div> : null}

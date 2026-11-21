@@ -10,6 +10,7 @@ const appGradle = resolve(root, "android/app/build.gradle")
 if (!existsSync(target)) throw new Error("Android project not found; run npx cap sync android first")
 const javaFiles = [
   "MainActivity.java",
+  "GeneratedImagePlugin.java",
   "LiveEventsPlugin.java",
   "PairingScannerPlugin.java",
   "BackgroundAttentionPlugin.java",
