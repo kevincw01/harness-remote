@@ -16,7 +16,7 @@ const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 const MAX_ATTACHMENT_TOTAL_BYTES = 15 * 1024 * 1024
 const MAX_MESSAGE_PAGE = 500
 const MAX_WORKSPACE_ATTACHMENT_BYTES = 10 * 1024 * 1024
-const WORKSPACE_ATTACHMENT_EXTENSIONS = new Set([".csv", ".xlsx", ".xls", ".ino"])
+const WORKSPACE_ATTACHMENT_EXTENSIONS = new Set([".csv", ".xlsx", ".xls", ".ino", ".txt", ".text", ".md", ".markdown", ".rst", ".adoc", ".org", ".tex", ".bib", ".log", ".tsv", ".json", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".properties", ".xml", ".html", ".htm", ".css", ".scss", ".sass", ".less", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".py", ".pyi", ".rb", ".php", ".go", ".rs", ".java", ".kt", ".kts", ".scala", ".swift", ".m", ".mm", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".cs", ".fs", ".fsx", ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd", ".sql", ".graphql", ".gql", ".proto", ".gradle", ".groovy", ".lua", ".pl", ".pm", ".r", ".dart", ".ex", ".exs", ".erl", ".hrl", ".clj", ".cljs", ".cljc", ".asm", ".s", ".v", ".vhd", ".vhdl", ".sol", ".pde", ".ipynb"])
 
 /**
  * Claude's ACP adapter can leave the service bookkeeping flag active after the visible turn has
@@ -76,7 +76,7 @@ function workspaceAttachmentFilename(value) {
   const original = path.basename(typeof value === "string" ? value : "")
   const extension = path.extname(original).toLowerCase()
   if (!WORKSPACE_ATTACHMENT_EXTENSIONS.has(extension)) {
-    throw new Error("Unsupported attachment type: accepted files are .csv, .xlsx, .xls and .ino")
+    throw new Error("Unsupported attachment type")
   }
   const stem = original
     .slice(0, -extension.length)

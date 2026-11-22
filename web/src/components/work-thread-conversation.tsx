@@ -38,9 +38,9 @@ import { WorkThreadAttention } from "./work-thread-attention"
 import { harnessIconUrl } from "../harness-icons"
 import { useTranslator } from "../useTranslator"
 
-const INITIAL_PAGE_SIZE = 200
-const OLDER_PAGE_SIZE = 500
-const INITIAL_HISTORY_BACKFILL_PAGES = 3
+const INITIAL_PAGE_SIZE = 50
+const OLDER_PAGE_SIZE = 100
+const INITIAL_HISTORY_BACKFILL_PAGES = 1
 const ACTIVE_RECONCILE_MS = 5_000
 const REPLY_SETTLE_RECONCILE_MS = 1_500
 const REPLY_SETTLE_IDLE_GRACE_MS = 20_000

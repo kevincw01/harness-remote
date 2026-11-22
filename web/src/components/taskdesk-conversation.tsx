@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ATTACHMENT_MAX_COUNT, fileToAttachment, type AttachmentPart, type WorkspaceAttachment } from "../attachments"
+import { ATTACHMENT_MAX_COUNT, fileToAttachment, WORKSPACE_ATTACHMENT_EXTENSIONS, type AttachmentPart, type WorkspaceAttachment } from "../attachments"
 import type { QueuedPromptEntry } from "../mid-turn-policy"
 import type { CommandInfo, MessageEnvelope } from "../types"
 import { AlertIcon, ChatIcon, CloseIcon, JumpToBottomIcon, JumpToTopIcon, LoadingIcon, PaperclipIcon, StopCircleIcon } from "../Icons"
@@ -212,8 +212,12 @@ const ConversationTranscript = memo(function ConversationTranscript({
   // dropping the room at completion would yank the finished reply down against the composer.
   const liveRoomRef = useRef(false)
   const liveRef = useRef(false)
+  const loadingOlderRef = useRef(loadingOlder)
+  const lastScrollTopRef = useRef(0)
+  const userScrolledUpRef = useRef(false)
   const [jumpAffordances, setJumpAffordances] = useState<JumpAffordances>({ top: false, bottom: false })
   loadOlderRef.current = onLoadOlder
+  loadingOlderRef.current = loadingOlder
 
   function refreshJumpAffordances(element: HTMLElement) {
     const next = jumpAffordancesFor(element)
@@ -317,11 +321,13 @@ const ConversationTranscript = memo(function ConversationTranscript({
     return () => window.cancelAnimationFrame(frame)
   }, [messages, loading, ready, sending, waiting])
 
-  async function loadOlder() {
+  async function loadOlder(preservePosition = false) {
     const requestOlder = loadOlderRef.current
-    if (!requestOlder || !hasMore || loadingOlder) return
+    if (!requestOlder || !hasMore || loadingOlderRef.current) return
     const transcript = transcriptRef.current
     const previousTop = transcript?.scrollTop ?? 0
+    const previousHeight = transcript?.scrollHeight ?? 0
+    loadingOlderRef.current = true
 
     // History loading is an explicit move away from the live tail. Cancel any already-scheduled
     // follow frame before it can race the prepend and snap the transcript back to the newest turn.
@@ -337,17 +343,21 @@ const ConversationTranscript = memo(function ConversationTranscript({
       window.requestAnimationFrame(() => {
         const current = transcriptRef.current
         if (current) {
-          // The history affordance is reached at the top of the transcript. Keep the same top-relative
-          // position so the newly prepended messages are actually revealed. Compensating by their
-          // added height could put a short initial page straight back at the bottom of the chat.
-          current.scrollTop = Math.max(0, Math.min(previousTop, current.scrollHeight - current.clientHeight))
+          // Scroll-triggered history must keep the message the user was reading under the same
+          // viewport position. The explicit button keeps its old behavior and exposes the newly
+          // loaded older content.
+          current.scrollTop = preservePosition
+            ? previousTop + Math.max(0, current.scrollHeight - previousHeight)
+            : Math.max(0, Math.min(previousTop, current.scrollHeight - current.clientHeight))
           nearBottomRef.current = false
           refreshJumpAffordances(current)
         }
         preservingOlderRef.current = false
+        loadingOlderRef.current = false
       })
     } catch (error) {
       preservingOlderRef.current = false
+      loadingOlderRef.current = false
       throw error
     }
   }
@@ -378,11 +388,16 @@ const ConversationTranscript = memo(function ConversationTranscript({
         }}
         onScroll={(event) => {
           const element = event.currentTarget
+          if (element.scrollTop < lastScrollTopRef.current - 4) userScrolledUpRef.current = true
+          lastScrollTopRef.current = element.scrollTop
           if (scrollFrameRef.current !== undefined) return
           scrollFrameRef.current = window.requestAnimationFrame(() => {
             scrollFrameRef.current = undefined
             nearBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= NEAR_BOTTOM_PX
             refreshJumpAffordances(element)
+            if (userScrolledUpRef.current && element.scrollTop <= 80 && hasMore && !loadingOlderRef.current) {
+              void loadOlder(true)
+            }
           })
         }}
       >
@@ -396,7 +411,7 @@ const ConversationTranscript = memo(function ConversationTranscript({
                   type="button"
                   className="uw-history-load"
                   disabled={loadingOlder}
-                  onClick={() => void loadOlder()}
+                  onClick={() => void loadOlder(false)}
                   title={loadingOlder ? "Loading earlier messages" : "Load earlier messages"}
                   aria-label={loadingOlder ? "Loading earlier messages" : "Load earlier messages"}
                 >
@@ -525,7 +540,13 @@ export function TaskDeskConversation({
     ...(attachmentsSupported ? ["image/*"] : []),
     ...(onWorkspaceFilesSelected
       ? [
-          ".csv", ".xlsx", ".xls", ".ino",
+          ...WORKSPACE_ATTACHMENT_EXTENSIONS,
+          "text/plain",
+          "text/markdown",
+          "application/json",
+          "application/xml",
+          "application/javascript",
+          "application/typescript",
           "text/csv",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "application/vnd.ms-excel"

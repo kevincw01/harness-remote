@@ -73,7 +73,7 @@ export async function fileToAttachment(
 }
 
 export const WORKSPACE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
-export const WORKSPACE_ATTACHMENT_EXTENSIONS = [".csv", ".xlsx", ".xls", ".ino"] as const
+export const WORKSPACE_ATTACHMENT_EXTENSIONS = [".csv", ".xlsx", ".xls", ".ino", ".txt", ".text", ".md", ".markdown", ".rst", ".adoc", ".org", ".tex", ".bib", ".log", ".tsv", ".json", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".properties", ".xml", ".html", ".htm", ".css", ".scss", ".sass", ".less", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".py", ".pyi", ".rb", ".php", ".go", ".rs", ".java", ".kt", ".kts", ".scala", ".swift", ".m", ".mm", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".cs", ".fs", ".fsx", ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd", ".sql", ".graphql", ".gql", ".proto", ".gradle", ".groovy", ".lua", ".pl", ".pm", ".r", ".dart", ".ex", ".exs", ".erl", ".hrl", ".clj", ".cljs", ".cljc", ".asm", ".s", ".v", ".vhd", ".vhdl", ".sol", ".pde", ".ipynb"] as const
 
 export type WorkspaceAttachment = {
   filename: string
@@ -107,7 +107,7 @@ export async function workspaceAttachmentPayload(
   maxBytes = WORKSPACE_ATTACHMENT_MAX_BYTES
 ): Promise<WorkspaceAttachmentPayload> {
   if (!isWorkspaceAttachmentFile(file)) {
-    throw new Error("Only CSV, XLSX, XLS and INO files can be attached as workspace files")
+    throw new Error("This file type cannot be attached as a workspace file")
   }
   if (file.size > maxBytes) throw new Error("Each file attachment must stay under 10MB")
   if (file.size === 0) throw new Error("The selected file is empty")

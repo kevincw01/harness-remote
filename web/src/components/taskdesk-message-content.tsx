@@ -5,6 +5,7 @@ import { groupConversationParts, type ConversationPartGroup } from "../conversat
 import { PaperclipIcon } from "../Icons"
 import type { MessageEnvelope, MessagePart } from "../types"
 import { openGeneratedImage, saveGeneratedImage } from "../generated-image"
+import { LazyImage } from "./lazy-image"
 import { ActivitySection, UnsupportedPart } from "./activity-timeline"
 import { CopyButton, Markdown } from "./message-markdown"
 
@@ -130,7 +131,7 @@ function GeneratedImageCard({ image }: { image: GeneratedImage }) {
           setStatus(reason instanceof Error ? reason.message : String(reason))
         })}
       >
-        <img src={image.src} alt={image.prompt || "Generated image"} loading="lazy" decoding="async" />
+        <LazyImage src={image.src} alt={image.prompt || "Generated image"} />
       </button>
       <figcaption>
         <span>{image.prompt || "Generated image"}</span>
@@ -152,14 +153,28 @@ function GeneratedImageCard({ image }: { image: GeneratedImage }) {
 function AttachmentPartCard({ part }: { part: MessagePart }) {
   const label = part.filename || "Attached image"
   const isImage = (part.mime || "").startsWith("image/") && typeof part.url === "string" && part.url.startsWith("data:")
-  return (
-    <div className="uw-message-attachment" title={label}>
-      {isImage ? <img src={part.url} alt={label} /> : <span className="uw-message-attachment-icon"><PaperclipIcon size={14} /></span>}
+  const card = (
+    <>
+      {isImage ? <LazyImage src={part.url!} alt={label} /> : <span className="uw-message-attachment-icon"><PaperclipIcon size={14} /></span>}
       <span>
         <strong>{label}</strong>
         <small>{part.mime || "attachment"}</small>
       </span>
-    </div>
+    </>
+  )
+  if (!isImage) return <div className="uw-message-attachment" title={label}>{card}</div>
+  return (
+    <button
+      type="button"
+      className="uw-message-attachment image"
+      title={`Open ${label}`}
+      aria-label={`Open ${label}`}
+      onClick={() => void openGeneratedImage(part.url!, label).catch((reason) => {
+        console.error("Could not open attached image", reason)
+      })}
+    >
+      {card}
+    </button>
   )
 }
 
